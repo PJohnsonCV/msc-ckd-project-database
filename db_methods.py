@@ -76,12 +76,12 @@ def initialiseTables():
 	  print("ERROR [db_methods.initialiseTables]: ", e)
 
 def initialiseAnalytes():
-  define_analytes = """
+  sql_insert_analytes = """
     INSERT OR IGNORE INTO analyte (code, descriptor, units) VALUES (?, ?, ?);
   """
 
   try:
-    dbCurs.executemany(define_analytes, known_analytes)
+    dbCurs.executemany(sql_insert_analytes, known_analytes)
     dbConn.commit() 
     print("Inserted new analyte(s): ", dbCurs.rowcount)
   except Error as e:
@@ -96,8 +96,33 @@ def selectPatientCount(id=None):
   except Error as e:
     print("ERROR [db_methods.selectPatientCount]: ", e)
 
-def insertNewPatient(study_id, date_of_birth, sex, ethnicity):
-  return False
+def insertNewPatient(study_id, date_of_birth, sex=1, ethnicity=0):
+  sql_insert_patient = """
+    INSERT OR REPLACE INTO patient (study_id, date_of_birth, sex, ethnicity) VALUES (?, ?, ?, ?);
+  """
+
+  try:
+    dbCurs.execute(sql_insert_patient, (study_id, date_of_birth, sex, ethnicity))
+    dbConn.commit() 
+    print("Inserted/updated patient: ", dbCurs.rowcount)
+  except Error as e:
+    print("ERROR [db_methods.insertNewPatient]: ", e)
+
+def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
+  sql_insert_sample = """
+    INSERT INTO sample (samp_id_full, receipt_date, type) VALUES (?, ?, ?);
+  """
+  sql_insert_ptsamplink = """
+    INSERT INTO patient_sample (study_id, samp_key) VALUES (?, ?);
+  """
+
+  try:
+    dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type))
+    dbCurs.execute(sql_insert_ptsamplink, (patient_id, sample_id))
+    dbConn.commit() 
+    print("Inserted sample, created patient link: ", dbCurs.rowcount)
+  except Error as e:
+    print("ERROR [db_methods.insertNewSample]: ", e)
 
 #initialiseTables()
 #initialiseAnalytes()
