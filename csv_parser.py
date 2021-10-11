@@ -24,7 +24,7 @@ def selectFile():
   elif os.path.isfile(file_path):
       return file_path
   else:
-      print("File not found. Try again or type 'QUIT'.")
+      print("File not found. Try again or type 'Q6UIT'.")
       return selectFile()
 
 def processFile(selected_file):
@@ -32,8 +32,8 @@ def processFile(selected_file):
     with open(selected_file, 'r') as csv_file:
       csv_dict = csv.DictReader(csv_file)
       col_names = csv_dict.fieldnames
-      tests = [test for test in col_names if x not in identifiers]
-      test_ids = getTestIDs(tests)
+      analyte_codes = [test for test in col_names if test not in identifiers]
+      analytes = getAnalyteIDs(analyte_codes)
 
       last_sample_id = ""
       for row in csv_dict:
@@ -44,8 +44,8 @@ def processFile(selected_file):
             determined_type = 0 
           checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
           addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
-          for test in test_ids:
-            addResult(samp_id=row['Lab No/Spec No'],test_id=test['id'],test_result=row[test['code']])
+          for analyte in analytes:
+            addResult(samp_id=row['Lab No/Spec No'],analyte_id=analytes[analyte],analyte_result=row[analyte])
 
           last_sample_id = row['Lab No/Spec No']
         
@@ -64,12 +64,16 @@ def checkPatient(pt_id, pt_sex, pt_dob):
 def addSample(samp_id, rec_date, samp_type, pt_id):
   db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
 
-def getTestIDs(tests):
-  a = 1
+def getAnalyteIDs(tests):
+  analytes = {}
+  for test in tests:
+    params = db_methods.selectAnalyteParameters(test)
+    analytes[test] = params['id']
+  return analytes
 
-def addResult(samp_id, test_id, test_result):
-  a = 1
+def addResult(samp_id, analyte_id, analyte_result):
+  db_methods.insertNewResult(samp_id, analyte_id, analyte_result)
 
 os.system('cls||clear')
-processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
-#processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")
+#processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
+processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")

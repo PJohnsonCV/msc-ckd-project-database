@@ -1,7 +1,7 @@
 import sqlite3
 from sqlite3 import Error
 
-dbConn = sqlite3.connect("dbtest.db") #(":memory:") #"/mnt/chromeos/MyFiles/Downloads/rawdata.db")
+dbConn = sqlite3.connect("dbtest.db")
 dbCurs = dbConn.cursor()
 
 define_tables = """
@@ -124,14 +124,59 @@ def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
   except Error as e:
     print("ERROR [db_methods.insertNewSample]: ", e)
 
-#initialiseTables()
-#initialiseAnalytes()
+def selectAnalyteParameters(a_code=None):
+  try:
+    dbCurs.execute("""SELECT id, code, descriptor, units FROM analyte WHERE code=?;""", [a_code])
+    rows = dbCurs.fetchall()
+    print (rows)
+  except Error as e:
+    print("ERROR [db_methods.selectAnalyteParameters]: ", e)
 
-#try:
-#  dbCurs.execute("""SELECT * FROM analytes;""")
-#  rows = dbCurs.fetchall()
-#  for row in rows:
-#	  print(row)
-#except Error as e:
-#    print("Ya goofed ", e)
-#dbConn.close()
+def insertNewResult(samp_id, analyte_id, analyte_result):
+  sql_insert_result = """
+    INSERT INTO result (analyte_id, value) VALUES (?, ?);
+  """
+  sql_insert_sampresultlink = """
+    INSERT INTO sample_result (samp_key, result_id) VALUES (?, ?);
+  """
+
+  try:
+    print(dbCurs.execute(sql_insert_result, (analyte_id, analyte_result)))
+  except Error as e:
+    print ("ERROR [db_methods.insertNewResult]: ", e)
+
+def resetDatabase():
+  sql_bobby_tables = """
+    DROP TABLE IF EXISTS patient;
+    DROP TABLE IF EXISTS sample;
+    DROP TABLE IF EXISTS analyte;
+    DROP TABLE IF EXISTS result;
+    DROP TABLE IF EXISTS patient_sample;
+    DROP TABLE IF EXISTS sample_result;
+  """
+  try:
+    dbCurs.executescript(sql_bobby_tables)
+    print("Tables deleted")
+    initialiseTables()
+    print("Tables created")
+    initialiseAnalytes()
+    print("Analytes added")
+  except Error as e:
+    print("Error deleting tables, ", e)
+
+def initialise():
+  initialiseTables()
+  initialiseAnalytes()
+  print("RUNNING IN STANDALONE MODE - db_methods.py")
+  try:
+    dbCurs.execute("""SELECT * FROM analyte;""")
+    rows = dbCurs.fetchall()
+    for row in rows:
+  	  print(row)
+  except Error as e:
+    print("initialise() Error: ", e)
+  dbConn.close()
+
+if __name__ == "__main__":
+  initialise()
+  #resetDatabase()
