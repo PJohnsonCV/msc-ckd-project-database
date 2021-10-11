@@ -6,6 +6,7 @@
 import db_methods
 import csv
 import os.path
+import time
 
 identifiers = [
   "Date Rec'd",
@@ -29,26 +30,26 @@ def selectFile():
 
 def processFile(selected_file):
   if selected_file != False:
+    print("Start time: " + time.asctime(time.localtime()))
     with open(selected_file, 'r') as csv_file:
       csv_dict = csv.DictReader(csv_file)
       col_names = csv_dict.fieldnames
       analyte_codes = [test for test in col_names if test not in identifiers]
       analytes = getAnalyteIDs(analyte_codes)
-
-      last_sample_id = ""
+      rcount=0
       for row in csv_dict:
-        if row['Lab No/Spec No'] != last_sample_id:
-          formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
-          determined_type = 1
-          if row['UMICR'] != "":
-            determined_type = 0 
-          checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
-          addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
-          for analyte in analytes:
-            addResult(samp_id=row['Lab No/Spec No'],analyte_id=analytes[analyte],analyte_result=row[analyte])
-
-          last_sample_id = row['Lab No/Spec No']
-        
+        formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
+        determined_type = 1
+        if row['UMICR'] != "":
+          determined_type = 0 
+        checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
+        addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
+        for analyte in analytes:
+          addResult(samp_id=row['Lab No/Spec No'],analyte_id=analytes[analyte],analyte_result=row[analyte])
+        rcount=rcount+1
+        print(rcount)
+    print("End time: " + time.asctime(time.localtime()))  
+    db_methods.selectCounts()          
   else:
     print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")    
 
@@ -59,7 +60,9 @@ def formatDateTime(dict_date, dict_time):
 def checkPatient(pt_id, pt_sex, pt_dob):
   matches = db_methods.selectPatientCount(pt_id)
   if matches == 0:
-      db_methods.insertNewPatient(study_id=pt_id, sex=pt_sex, date_of_birth=pt_dob, ethnicity=False)
+    db_methods.insertNewPatient(study_id=pt_id, sex=pt_sex, date_of_birth=pt_dob, ethnicity=False)
+    return 1
+  return 0
 
 def addSample(samp_id, rec_date, samp_type, pt_id):
   db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
@@ -68,7 +71,7 @@ def getAnalyteIDs(tests):
   analytes = {}
   for test in tests:
     params = db_methods.selectAnalyteParameters(test)
-    analytes[test] = params['id']
+    analytes[test] = params[0][0]
   return analytes
 
 def addResult(samp_id, analyte_id, analyte_result):

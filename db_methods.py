@@ -104,9 +104,9 @@ def insertNewPatient(study_id, date_of_birth, sex=1, ethnicity=0):
   try:
     dbCurs.execute(sql_insert_patient, (study_id, date_of_birth, sex, ethnicity))
     dbConn.commit() 
-    print("Inserted/updated patient: ", dbCurs.rowcount)
   except Error as e:
-    print("ERROR [db_methods.insertNewPatient]: ", e)
+    #print("ERROR [db_methods.insertNewPatient]: ", e)
+    return 0
 
 def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
   sql_insert_sample = """
@@ -120,17 +120,17 @@ def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
     dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type))
     dbCurs.execute(sql_insert_ptsamplink, (patient_id, sample_id))
     dbConn.commit() 
-    print("Inserted sample, created patient link: ", dbCurs.rowcount)
   except Error as e:
-    print("ERROR [db_methods.insertNewSample]: ", e)
+    #print("ERROR [db_methods.insertNewSample]: ", e)
+    return 0
 
 def selectAnalyteParameters(a_code=None):
   try:
     dbCurs.execute("""SELECT id, code, descriptor, units FROM analyte WHERE code=?;""", [a_code])
-    rows = dbCurs.fetchall()
-    print (rows)
+    return dbCurs.fetchall()
   except Error as e:
     print("ERROR [db_methods.selectAnalyteParameters]: ", e)
+    return None
 
 def insertNewResult(samp_id, analyte_id, analyte_result):
   sql_insert_result = """
@@ -139,11 +139,32 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
   sql_insert_sampresultlink = """
     INSERT INTO sample_result (samp_key, result_id) VALUES (?, ?);
   """
+  
+  try:
+    dbCurs.execute(sql_insert_result, (analyte_id, analyte_result))
+    result = dbCurs.lastrowid
+    dbCurs.execute(sql_insert_sampresultlink, (samp_id, result))
+    dbConn.commit()
+    return result
+  except Error as e:
+    #print ("ERROR [db_methods.insertNewResult]: ", e)
+    return 0
+
+def selectCounts():
+  sql_count_rows = """
+    SELECT 
+      (select count(p.study_id) from patient p) as patients, 
+      (select count(s.samp_key) from sample s) as samples, 
+      (select count(r.id) from result r) as results
+    ; 
+  """
 
   try:
-    print(dbCurs.execute(sql_insert_result, (analyte_id, analyte_result)))
+    dbCurs.execute(sql_count_rows)
+    print(dbCurs.fetchall())
   except Error as e:
-    print ("ERROR [db_methods.insertNewResult]: ", e)
+    print("ERROR [db_methods.selectCounts]: ", e)
+    
 
 def resetDatabase():
   sql_bobby_tables = """
@@ -178,5 +199,6 @@ def initialise():
   dbConn.close()
 
 if __name__ == "__main__":
-  initialise()
+  #initialise()
   #resetDatabase()
+  selectCounts()
