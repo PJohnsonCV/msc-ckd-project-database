@@ -25,7 +25,7 @@ def selectFile():
   elif os.path.isfile(file_path):
       return file_path
   else:
-      print("File not found. Try again or type 'Q6UIT'.")
+      print("File not found. Try again or type 'QUIT'.")
       return selectFile()
 
 def processFile(selected_file):
