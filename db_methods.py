@@ -212,11 +212,12 @@ def selectPatientSamples(study_id, date_from, date_to):
   except Error as e:
     print("selectPatientSamples() error: ", e)
     dbConn.close()
+    return False
 
 if __name__ == "__main__":
-  #initialise()
+  initialise()
   #resetDatabase()
   #selectCounts()
-  r = selectPatientSamples(53, '1900-01-01', '2021-12-31')
-  for rows in r:
-    print("Found: ", rows)
+  #r = selectPatientSamples(53, '1900-01-01', '2021-12-31')
+  #for rows in r:
+  #  print("Found: ", rows)

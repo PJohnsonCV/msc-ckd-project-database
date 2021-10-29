@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy
+import db_methods
 
 # Data for plotting
 x_time = ['samp1','samp2','samp3','samp4','samp5','samp6\n00/00/00']
@@ -7,7 +8,14 @@ s_data = [90,85,75,70,60,45]
 s_data2 = [0.5,0.8,1.0,1.2,1.8,2.0]
 s_data3 = [8, 16, 32, 64, 128, 256]
 
-def generate_chart(xlabels, values):
+def dataGather():
+  samples = db_methods.selectPatientSamples(53, '1900-01-01', '2021-12-31')
+  if samples != False:
+    for sample in samples:
+      print('DG:',sample)
+  return True 
+
+def generateChart(xlabels, values):
   fig, ax1 = plt.subplots()
 
   increments = list(range(0, len(xlabels)))
@@ -44,5 +52,6 @@ def generate_chart(xlabels, values):
   plt.tight_layout()
   fig.savefig("test.png")
 
-generate_chart(x_time, {'egfr':s_data, 'pho':s_data2, 'hb':s_data3})
+generateChart(x_time, {'egfr':s_data, 'pho':s_data2, 'hb':s_data3})
 plt.show()
+#dataGather()
