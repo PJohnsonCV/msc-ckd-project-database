@@ -198,7 +198,25 @@ def initialise():
     print("initialise() Error: ", e)
   dbConn.close()
 
+def selectPatientSamples(study_id, date_from, date_to):
+  sql_get_patient_samples = """
+    SELECT DISTINCT ps.samp_key FROM patient_sample ps, sample s 
+    WHERE ps.study_id = ? 
+      AND s.receipt_date >= ? 
+      AND s.receipt_date <= ?;
+  """
+  try:
+    dbCurs.execute(sql_get_patient_samples, (study_id, date_from, date_to))
+    rows = dbCurs.fetchall()
+    return rows
+  except Error as e:
+    print("selectPatientSamples() error: ", e)
+    dbConn.close()
+
 if __name__ == "__main__":
   #initialise()
   #resetDatabase()
-  selectCounts()
+  #selectCounts()
+  r = selectPatientSamples(53, '1900-01-01', '2021-12-31')
+  for rows in r:
+    print("Found: ", rows)
