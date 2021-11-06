@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from sqlite3 import Error
 
@@ -150,6 +151,7 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
     #print ("ERROR [db_methods.insertNewResult]: ", e)
     return 0
 
+#To DELETE
 def selectCounts():
   sql_count_rows = """
     SELECT 
@@ -217,11 +219,11 @@ def selectPatientSamples(study_id, date_from, date_to):
 def selectSampleResults(samp_key):
   sql_get_sample_result = """
     SELECT a.code, r.value FROM analyte a, result r 
-    INNER JOIN sample_result sr ON r.id=sr.result_id AND
+    JOIN sample_result sr ON r.id=sr.result_id AND
     sr.samp_key IN (?) ORDER BY sr.samp_key;
   """
   try:
-    dbCurs.execute(sql_get_sample_result, samp_key)
+    dbCurs.execute(sql_get_sample_result, str(samp_key))
     rows = dbCurs.fetchall()
     return rows
   except Error as e:
@@ -229,10 +231,42 @@ def selectSampleResults(samp_key):
     dbConn.close()
     return False
 
+def debugShowTables():
+  tables = ['analyte', 'patient', 'sample', 'result']
+  for table in tables:
+    rows = debug_selectRowCount(table)
+    print('######################')
+    print('##\n##\n## {} -- {} rows\n##\n##'.format(table, rows))
+    debug_selectTable(table)
+    print('----------------------')
+
+def debug_selectRowCount(table_name):
+  sql_string = "SELECT count(*) FROM {}".format(table_name)
+  response = tryCatchSelectOne(sql_string, "", "debug_selectRowCount")
+  return response
+
+def debug_selectTable(table_name):
+  sql_string = "SELECT * FROM {};".format(table_name)
+  response = tryCatchSelectOne(sql_string, "", "debug_selectTable")
+  if response != False:
+    print(response)
+
+def tryCatchSelectOne(sql_string, values, method_name):
+  try:
+    dbCurs.execute(sql_string, values)
+    rows = dbCurs.fetchall()
+    return rows
+  except Error as e:
+    print("db_methods.py '{}' error: {}".format(method_name, e))
+    dbConn.close()
+    return False
+
 if __name__ == "__main__":
-  initialise()
+  #initialise()
   #resetDatabase()
   #selectCounts()
   #r = selectPatientSamples(53, '1900-01-01', '2021-12-31')
   #for rows in r:
   #  print("Found: ", rows)
+  os.system('cls||clear')
+  debugShowTables()
