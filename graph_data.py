@@ -11,8 +11,11 @@ s_data3 = [8, 16, 32, 64, 128, 256]
 def dataGather():
   samples = db_methods.selectPatientSamples(53, '1900-01-01', '2021-12-31')
   if samples != False:
+    #Convert list to string for SQL use
+    #sampleList = str(samples).replace('(', "").replace('),', "").replace("[","").replace(",)]","").replace("'","")
     for sample in samples:
-      print('DG:',sample)
+      results = db_methods.selectSampleResults(sample)
+      print(results)
   return True 
 
 def generateChart(xlabels, values):
@@ -52,6 +55,6 @@ def generateChart(xlabels, values):
   plt.tight_layout()
   fig.savefig("test.png")
 
-generateChart(x_time, {'egfr':s_data, 'pho':s_data2, 'hb':s_data3})
-plt.show()
-#dataGather()
+#generateChart(x_time, {'egfr':s_data, 'pho':s_data2, 'hb':s_data3})
+#plt.show()
+dataGather()

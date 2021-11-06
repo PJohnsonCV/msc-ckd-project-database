@@ -214,6 +214,21 @@ def selectPatientSamples(study_id, date_from, date_to):
     dbConn.close()
     return False
 
+def selectSampleResults(samp_key):
+  sql_get_sample_result = """
+    SELECT a.code, r.value FROM analyte a, result r 
+    INNER JOIN sample_result sr ON r.id=sr.result_id AND
+    sr.samp_key IN (?) ORDER BY sr.samp_key;
+  """
+  try:
+    dbCurs.execute(sql_get_sample_result, samp_key)
+    rows = dbCurs.fetchall()
+    return rows
+  except Error as e:
+    print("selectSampleResults() error: ", e)
+    dbConn.close()
+    return False
+
 if __name__ == "__main__":
   initialise()
   #resetDatabase()
