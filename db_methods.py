@@ -231,25 +231,46 @@ def selectSampleResults(samp_key):
     dbConn.close()
     return False
 
-def debugShowTables():
-  tables = ['analyte', 'patient', 'sample', 'result']
+def selectSampleResults(samp_number):
+  sql_string = """
+    SELECT s.samp_id_full as 'SampleNo',
+           s.receipt_date as 'Received',
+           'a.code' as 'Analyte',
+           'r.value' as 'Result',
+           'a.units' as 'Units'
+    FROM sample_result sr
+    INNER JOIN sample s ON (s.samp_key=sr.samp_key)
+
+    WHERE s.samp_id_full = ?;
+  """
+  print(tryCatchSelectOne(sql_string, (samp_number,), "selectSampleResults"))
+
+def debug_ShowTables(single=""):
+  tables = ['analyte', 'patient', 'sample', 'result', 'patient_sample', 'sample_result']
+  if single != "":
+    tables = [single]
+
   for table in tables:
-    rows = debug_selectRowCount(table)
+    count = debug_selectRowCount(table)
+    counter = 0
     print('######################')
-    print('##\n##\n## {} -- {} rows\n##\n##'.format(table, rows))
-    debug_selectTable(table)
-    print('----------------------')
+    print('##\n##\n## {} -- {} rows\n##\n##'.format(table, count))
+    rows = debug_selectTable(table)
+    for row in rows:
+      counter += 1
+      print("{} {}/{}: {}".format(table, str(counter).zfill(len(str(count))), count, row))
+    print('----------------------\n')
 
 def debug_selectRowCount(table_name):
   sql_string = "SELECT count(*) FROM {}".format(table_name)
   response = tryCatchSelectOne(sql_string, "", "debug_selectRowCount")
+  if response != False:
+    response = response[0][0]
   return response
 
 def debug_selectTable(table_name):
   sql_string = "SELECT * FROM {};".format(table_name)
-  response = tryCatchSelectOne(sql_string, "", "debug_selectTable")
-  if response != False:
-    print(response)
+  return tryCatchSelectOne(sql_string, "", "debug_selectTable")
 
 def tryCatchSelectOne(sql_string, values, method_name):
   try:
@@ -269,4 +290,5 @@ if __name__ == "__main__":
   #for rows in r:
   #  print("Found: ", rows)
   os.system('cls||clear')
-  debugShowTables()
+  debug_ShowTables("sample_result")
+  selectSampleResults("Q,21.2594349.D")
