@@ -43,11 +43,13 @@ def processFile(selected_file):
         if row['UMICR'] != "":
           determined_type = 0 
         checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
-        addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
-        for analyte in analytes:
-          addResult(samp_id=row['Lab No/Spec No'],analyte_id=analytes[analyte],analyte_result=row[analyte])
-        rcount=rcount+1
-        print(rcount)
+        sID = addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
+        if sID != False:
+          for analyte in analytes:
+            if row[analyte] != "":
+              addResult(samp_id=sID,analyte_id=analytes[analyte],analyte_result=row[analyte])
+          rcount=rcount+1
+          print(rcount)
     print("End time: " + time.asctime(time.localtime()))  
     db_methods.selectCounts()          
   else:

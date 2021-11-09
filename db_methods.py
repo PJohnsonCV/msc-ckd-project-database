@@ -118,9 +118,10 @@ def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
   """
 
   try:
-    dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type))
+    lastID = dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type)).lastrowid
     dbCurs.execute(sql_insert_ptsamplink, (patient_id, sample_id))
     dbConn.commit() 
+    return lastID
   except Error as e:
     #print("ERROR [db_methods.insertNewSample]: ", e)
     return 0
@@ -232,18 +233,22 @@ def selectSampleResults(samp_key):
     return False
 
 def selectSampleResults(samp_number):
+  sql_string2 = """SELECT sr.result_id FROM sample_result sr WHERE sr.samp_key = ?;"""
   sql_string = """
     SELECT s.samp_id_full as 'SampleNo',
            s.receipt_date as 'Received',
-           'a.code' as 'Analyte',
-           'r.value' as 'Result',
-           'a.units' as 'Units'
-    FROM sample_result sr
-    INNER JOIN sample s ON (s.samp_key=sr.samp_key)
-
-    WHERE s.samp_id_full = ?;
+           a.code as 'Analyte',
+           r.value as 'Result',
+           a.units as 'Units'
+    FROM sample s,
+         analyte a,
+         result r
+    WHERE r.id IN (SELECT sr.result_id FROM sample_result sr WHERE sr.samp_key = ?) AND
+          a.id = r.analyte_id;
   """
-  print(tryCatchSelectOne(sql_string, (samp_number,), "selectSampleResults"))
+  results = tryCatchSelectOne(sql_string2, (samp_number,), "selectSampleResults")
+  for result in results:
+    print(result)
 
 def debug_ShowTables(single=""):
   tables = ['analyte', 'patient', 'sample', 'result', 'patient_sample', 'sample_result']
@@ -256,9 +261,12 @@ def debug_ShowTables(single=""):
     print('######################')
     print('##\n##\n## {} -- {} rows\n##\n##'.format(table, count))
     rows = debug_selectTable(table)
-    for row in rows:
-      counter += 1
-      print("{} {}/{}: {}".format(table, str(counter).zfill(len(str(count))), count, row))
+    if rows != False:
+      for row in rows:
+        counter += 1
+        print("{} {}/{}: {}".format(table, str(counter).zfill(len(str(count))), count, row))
+    else:
+      print("Try/Catch error")
     print('----------------------\n')
 
 def debug_selectRowCount(table_name):
@@ -290,5 +298,5 @@ if __name__ == "__main__":
   #for rows in r:
   #  print("Found: ", rows)
   os.system('cls||clear')
-  debug_ShowTables("sample_result")
+  #debug_ShowTables("sample_result")
   selectSampleResults("Q,21.2594349.D")
