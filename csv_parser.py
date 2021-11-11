@@ -36,20 +36,26 @@ def processFile(selected_file):
       col_names = csv_dict.fieldnames
       analyte_codes = [test for test in col_names if test not in identifiers]
       analytes = getAnalyteIDs(analyte_codes)
+    #if csv_dict != False:  
       rcount=0
       for row in csv_dict:
         formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
         determined_type = 1
         if row['UMICR'] != "":
           determined_type = 0 
+        print("Row {} | pre-checkPatient".format(rcount))
         checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
+        print("Row {} | post-checkPatient".format(rcount))
         sID = addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
-        if sID != False:
+        print("Row {} | sID value {}".format(rcount,sID))
+        if sID != False and sID != None:
           for analyte in analytes:
             if row[analyte] != "":
               addResult(samp_id=sID,analyte_id=analytes[analyte],analyte_result=row[analyte])
-          rcount=rcount+1
-          print(rcount)
+        rcount=rcount+1
+        print("Next row in CSV file: {}".format(rcount))
+        #if rcount == 10:
+        #  break
     print("End time: " + time.asctime(time.localtime()))  
     db_methods.selectCounts()          
   else:
@@ -79,6 +85,6 @@ def getAnalyteIDs(tests):
 def addResult(samp_id, analyte_id, analyte_result):
   db_methods.insertNewResult(samp_id, analyte_id, analyte_result)
 
-#os.system('cls||clear')
+os.system('cls||clear')
 #processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
-#processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")
+processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")

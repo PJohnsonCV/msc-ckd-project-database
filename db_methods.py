@@ -69,6 +69,10 @@ known_analytes = [
   ("DEMO","DEMO - DELETE", "DEMO")
 ]
 
+def resetConnection():
+  dbConn = sqlite3.connect("dbtest.db")
+  dbCurs = dbConn.cursor()
+
 def initialiseTables():
   try: 
     dbCurs.executescript(define_tables)
@@ -119,6 +123,7 @@ def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
 
   try:
     lastID = dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type)).lastrowid
+    print("New sample, lastID: {}".format(lastID))
     dbCurs.execute(sql_insert_ptsamplink, (patient_id, sample_id))
     dbConn.commit() 
     return lastID
@@ -145,11 +150,13 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
   try:
     dbCurs.execute(sql_insert_result, (analyte_id, analyte_result))
     result = dbCurs.lastrowid
+    print("insertNewResult -> ({}) {} = {}".format(result, analyte_id, analyte_result))
     dbCurs.execute(sql_insert_sampresultlink, (samp_id, result))
+    print("                -> ({}) {}".format(result, samp_id))
     dbConn.commit()
     return result
-  except Error as e:
-    #print ("ERROR [db_methods.insertNewResult]: ", e)
+  except Error as e:  
+    print ("ERROR [db_methods.insertNewResult]: ", e)
     return 0
 
 #To DELETE
@@ -291,12 +298,9 @@ def tryCatchSelectOne(sql_string, values, method_name):
     return False
 
 if __name__ == "__main__":
-  #initialise()
-  #resetDatabase()
-  #selectCounts()
-  #r = selectPatientSamples(53, '1900-01-01', '2021-12-31')
-  #for rows in r:
-  #  print("Found: ", rows)
+  initialise()
+  resetDatabase()
+  resetConnection()
   os.system('cls||clear')
-  #debug_ShowTables("sample_result")
-  selectSampleResults("Q,21.2594349.D")
+  debug_ShowTables("analyte")
+  #selectSampleResults("Q,21.2594349.D")
