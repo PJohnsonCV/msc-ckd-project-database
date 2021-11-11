@@ -3,6 +3,7 @@
 # - Format fields as required for database storage
 # - Use SQL.py methods to insert data to database
 
+from os import X_OK
 import db_methods
 import csv
 import os.path
@@ -27,6 +28,12 @@ def selectFile():
   else:
       print("File not found. Try again or type 'QUIT'.")
       return selectFile()
+  
+#If a sample has a urine albumin result, it must be a urine sample
+def bloodOrUrine(umic_result):
+  if umic_result != "":
+    return 0  #urine
+  return 1    #blood
 
 def processFile(selected_file):
   if selected_file != False:
@@ -36,28 +43,18 @@ def processFile(selected_file):
       col_names = csv_dict.fieldnames
       analyte_codes = [test for test in col_names if test not in identifiers]
       analytes = getAnalyteIDs(analyte_codes)
-    #if csv_dict != False:  
       rcount=0
       for row in csv_dict:
         formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
-        determined_type = 1
-        if row['UMICR'] != "":
-          determined_type = 0 
-        print("Row {} | pre-checkPatient".format(rcount))
+        determined_type = bloodOrUrine(row['UMICR'])
         checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
-        print("Row {} | post-checkPatient".format(rcount))
         sID = addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
-        print("Row {} | sID value {}".format(rcount,sID))
         if sID != False and sID != None:
           for analyte in analytes:
             if row[analyte] != "":
               addResult(samp_id=sID,analyte_id=analytes[analyte],analyte_result=row[analyte])
         rcount=rcount+1
-        print("Next row in CSV file: {}".format(rcount))
-        #if rcount == 10:
-        #  break
-    print("End time: " + time.asctime(time.localtime()))  
-    db_methods.selectCounts()          
+    print("End time: " + time.asctime(time.localtime()))     
   else:
     print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")    
 
@@ -73,7 +70,7 @@ def checkPatient(pt_id, pt_sex, pt_dob):
   return 0
 
 def addSample(samp_id, rec_date, samp_type, pt_id):
-  db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
+  return db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
 
 def getAnalyteIDs(tests):
   analytes = {}
@@ -86,5 +83,5 @@ def addResult(samp_id, analyte_id, analyte_result):
   db_methods.insertNewResult(samp_id, analyte_id, analyte_result)
 
 os.system('cls||clear')
-#processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
-processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")
+processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
+#processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")

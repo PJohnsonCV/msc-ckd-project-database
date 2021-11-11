@@ -120,9 +120,10 @@ def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
   sql_insert_ptsamplink = """
     INSERT INTO patient_sample (study_id, samp_key) VALUES (?, ?);
   """
-
+  print("In insertNewSample({}, {}, {}, {})".format(sample_id, receipt_date, sample_type, patient_id))
   try:
-    lastID = dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type)).lastrowid
+    dbCurs.execute(sql_insert_sample, (sample_id, receipt_date, sample_type)).lastrowid
+    lastID = dbCurs.lastrowid
     print("New sample, lastID: {}".format(lastID))
     dbCurs.execute(sql_insert_ptsamplink, (patient_id, sample_id))
     dbConn.commit() 
@@ -146,7 +147,7 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
   sql_insert_sampresultlink = """
     INSERT INTO sample_result (samp_key, result_id) VALUES (?, ?);
   """
-  
+  print ("In insertNewResult({}, {}, {})".format(samp_id, analyte_id, analyte_result))
   try:
     dbCurs.execute(sql_insert_result, (analyte_id, analyte_result))
     result = dbCurs.lastrowid
@@ -206,7 +207,7 @@ def initialise():
   	  print(row)
   except Error as e:
     print("initialise() Error: ", e)
-  dbConn.close()
+  #dbConn.close()
 
 def selectPatientSamples(study_id, date_from, date_to):
   sql_get_patient_samples = """
@@ -302,5 +303,5 @@ if __name__ == "__main__":
   resetDatabase()
   resetConnection()
   os.system('cls||clear')
-  debug_ShowTables("analyte")
+  #debug_ShowTables("analyte")
   #selectSampleResults("Q,21.2594349.D")
