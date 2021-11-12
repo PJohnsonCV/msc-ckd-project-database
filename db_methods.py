@@ -4,6 +4,7 @@ from sqlite3 import Error
 
 dbConn = sqlite3.connect("dbtest.db")
 dbCurs = dbConn.cursor()
+#dbConn.set_trace_callback(print)
 
 define_tables = """
   CREATE TABLE IF NOT EXISTS patient (
@@ -225,7 +226,8 @@ def selectPatientSamples(study_id, date_from, date_to):
     dbConn.close()
     return False
 
-def selectSampleResults(samp_key):
+#WAS THIS THE SOURCE OF DUPLICATION??? SAME METHOD NAME!
+def ______selectSampleResults(samp_key):
   sql_get_sample_result = """
     SELECT a.code, r.value FROM analyte a, result r 
     JOIN sample_result sr ON r.id=sr.result_id AND
@@ -241,22 +243,19 @@ def selectSampleResults(samp_key):
     return False
 
 def selectSampleResults(samp_number):
-  sql_string2 = """SELECT sr.result_id FROM sample_result sr WHERE sr.samp_key = ?;"""
   sql_string = """
-    SELECT s.samp_id_full as 'SampleNo',
-           s.receipt_date as 'Received',
+    SELECT s.samp_id_full as 'SampleNo', 
            a.code as 'Analyte',
            r.value as 'Result',
            a.units as 'Units'
-    FROM sample s,
-         analyte a,
-         result r
-    WHERE r.id IN (SELECT sr.result_id FROM sample_result sr WHERE sr.samp_key = ?) AND
-          a.id = r.analyte_id;
+    FROM sample s
+      JOIN sample_result sr ON (sr.samp_key = s.samp_key)
+      JOIN result r ON (sr.result_id = r.id)
+      JOIN analyte a ON (r.analyte_id = a.id)
+    WHERE s.samp_id_full = ?;
   """
-  results = tryCatchSelectOne(sql_string2, (samp_number,), "selectSampleResults")
-  for result in results:
-    print(result)
+  results = tryCatchSelectOne(sql_string, (samp_number,), "selectSampleResults")
+  return results
 
 def debug_ShowTables(single=""):
   tables = ['analyte', 'patient', 'sample', 'result', 'patient_sample', 'sample_result']
@@ -299,9 +298,9 @@ def tryCatchSelectOne(sql_string, values, method_name):
     return False
 
 if __name__ == "__main__":
-  initialise()
-  resetDatabase()
-  resetConnection()
+#  initialise()
+#  resetDatabase()
+#  resetConnection()
   os.system('cls||clear')
   #debug_ShowTables("analyte")
   #selectSampleResults("Q,21.2594349.D")
