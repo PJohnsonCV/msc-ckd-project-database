@@ -1,21 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy
 import db_methods
-
-# Data for plotting
-x_time = ['samp1','samp2','samp3','samp4','samp5','samp6\n00/00/00']
-s_data = [90,85,75,70,60,45]
-s_data2 = [0.5,0.8,1.0,1.2,1.8,2.0]
-s_data3 = [8, 16, 32, 64, 128, 256]
+from datetime import datetime
 
 def dataGather(study_id, date_from, date_to):
   samp_list=[]
-  result_dict={}
+  result_dict={'SOD': [],
+    'POT': [],
+    'URE': [],
+    'CRE': [],
+    'UMICR': [],
+    'CRP': [],
+    'PHO': [],
+    'HBA1C': [],
+    'HB': [],
+    'HCT': [],
+    'MCV': []}
   
   samples = db_methods.selectPatientSamples(study_id, date_from, date_to)
   if samples != False:
-    #Convert list to string for SQL use
-    #sampleList = str(samples).replace('(', "").replace('),', "").replace("[","").replace(",)]","").replace("'","")
     for sample in samples:
       samp_list.append(sample[0])
       results = db_methods.selectSampleResults(sample[0])
@@ -23,7 +26,11 @@ def dataGather(study_id, date_from, date_to):
         if result[1] not in result_dict:
           result_dict[result[1]] = []
         result_dict[result[1]].append(float(result[2]))
-    print(result_dict.keys())
+      #make sure all lists are same size
+      longest_results = len(max(result_dict.values(), key=len))
+      for x in result_dict:
+        if len(result_dict[x]) < longest_results:
+          result_dict[x].append(0)
     generateChart2x2(samp_list, result_dict, "{} \n {} - {}".format(study_id, date_from, date_to))
   return True 
 
@@ -70,13 +77,7 @@ def generateChart(xlabels, values):
   fig.savefig("test.png")
 
 def generateChart2x2(xlabels, values, studyid):
-  fig, axs = plt.subplots(6,2, figsize=(5,5), constrained_layout=True, squeeze = False)
-
-  text_box = "X axis:\n"
-  counter = 0
-  for x in xlabels:
-    counter+= 1
-    text_box += "{} - {}\n".format(counter, x)
+  fig, axs = plt.subplots(6,2, figsize=(5, 5), constrained_layout=True, squeeze=False)
 
   increments = list(range(0, len(xlabels)))
   stages = [
@@ -93,11 +94,18 @@ def generateChart2x2(xlabels, values, studyid):
     'URE': 40,
     'CRE': 400,
     'UMICR': 20,
-    'CRP': 300 
+    'CRP': 300,
+    'PHO': 2,
+    'HBA1C': 120,
+    'HB': 165,
+    'HCT': 0.48,
+    'MCV': 103
   }
 
-  for x in range(3):
+  for x in range(6):
     for y in range(2):
+      if x == 5 and y == 1:
+        break
       axs[x,y].set(xlabel='Sample', ylabel='eGFR (mL/min/1.73m$^{2}$)', xticks=range(len(xlabels)))
       axs[x,y].set_ylim([0,120])
   
@@ -106,65 +114,42 @@ def generateChart2x2(xlabels, values, studyid):
         axs[x,y].plot(increments, numpy.full(len(increments), control['increments']), linewidth='1', color='tab:gray', alpha=0.5)
         axs[x,y].text(0.1, control['increments'], "Stage "+control['stage']+" ("+control['limit']+")", fontsize=6, color='tab:gray', alpha=0.75)
       #egfr
-      axs[x,y].plot(increments, values['GFRE'], linewidth='2', color='tab:blue')
-      axs[x,y].set_xticklabels(range(1,len(xlabels)+1)) #xlabels)
+      if 'GFRE' in values.keys():
+        axs[x,y].plot(increments, values['GFRE'], linewidth='2', color='tab:blue')
+      else:
+        axs[x,y].plot(increments, values['GFR'], linewidth='2', color='tab:blue')
+      axs[x,y].set_xticklabels(range(1,len(xlabels)+1), Fontsize=8) #xlabels)
+
+  ax_list = [
+    axs[0,0].twinx(),
+    axs[0,1].twinx(),
+    axs[1,0].twinx(),
+    axs[1,1].twinx(),
+    axs[2,0].twinx(),
+    axs[2,1].twinx(),
+    axs[3,0].twinx(),
+    axs[3,1].twinx(),
+    axs[4,0].twinx(),
+    axs[4,1].twinx(),
+    axs[5,0].twinx()
+    #axs[5,1].twinx()
+  ]
   
-  #x = 0
-  #y = 0
-  #for key in values.keys():
-  #  ax2 = axs[0,0].twinx()
-  #  ax2.set_ylim(0, ylim[key])
-  #  ax2.set(ylabel=key)
-  #  ax2.plot(increments, values[key], linewidth='1', color='tab:red', label=key)
-  #  y+= 1
-  #  if y == 2:
-  #    x += 1
-  #    y = 0
-  #  if x == 2:
-  #    break  
-
-  key = 'SOD'
-  ax2 = axs[0,0].twinx()
-  ax2.set_ylim(0,ylim[key]) 
-  ax2.set(ylabel=key)
-  ax2.plot(increments, values[key], linewidth='1', color='tab:red')
-
-  key = 'POT'
-  ax3 = axs[0,1].twinx()
-  ax3.set_ylim(0,ylim[key]) 
-  ax3.set(ylabel=key)
-  ax3.plot(increments, values[key], linewidth='1', color='tab:red')
-
-  key = 'CRE'
-  ax4 = axs[1,0].twinx()
-  ax4.set_ylim(0,ylim[key]) 
-  ax4.set(ylabel=key)
-  ax4.plot(increments, values[key], linewidth='1', color='tab:red')
-
-  key = 'URE'
-  ax5 = axs[1,1].twinx()
-  ax5.set_ylim(0,ylim[key]) 
-  ax5.set(ylabel=key)
-  ax5.plot(increments, values[key], linewidth='1', color='tab:red')
-
-  key = 'CRP'
-  ax6 = axs[2,0].twinx()
-  ax6.set_ylim(0,ylim[key]) 
-  ax6.set(ylabel=key)
-#  ax6.plot(increments, values[key], linewidth='1', color='tab:red')
-
-  #key = ''
-  #ax7 = axs[2,1].twinx()
-  #ax7.set_ylim(0,400) 
-  #ax7.set(ylabel=key)
-  #ax7.plot(increments, values[key], linewidth='1', color='tab:red')
+  ax=-1
+  for key in ylim.keys():
+    if key in values.keys():
+      ax+=1
+      ax_list[ax].set_ylim(0,ylim[key]) 
+      ax_list[ax].set(ylabel=key)
+      if len(values[key]) == len(increments):
+        ax_list[ax].plot(increments, values[key], linewidth='1', color='tab:red')
+  fig.delaxes(axs[5,1])
 
   plt.margins(x=0, y=0)
-  #plt.tight_layout()
-  fig.suptitle("\n".join([studyid]))
-  #fig.text(1, 1, text_box, verticalalignment='top', horizontalalignment='right')
-  fig.set_size_inches(10.5, 18.5)
+  fig.suptitle("Study_ID: {}\nPrinted: {}".format(studyid, datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+  fig.set_size_inches(8.3, 11.7) #A4
   fig.savefig("test.png", dpi=96)
+  #fig.savefig(datetime.now().strftime("%Y/%m/%d %H%M%S")+"_"+studyid, dpi=96)
 
 #generateChart(x_time, {'egfr':s_data, 'pho':s_data2, 'hb':s_data3})
 

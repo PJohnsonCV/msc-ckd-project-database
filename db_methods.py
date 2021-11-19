@@ -300,7 +300,7 @@ def tryCatchSelectOne(sql_string, values, method_name):
 if __name__ == "__main__":
 #  initialise()
 #  resetDatabase()
-#  resetConnection()
+  resetConnection()
   os.system('cls||clear')
-  #debug_ShowTables("analyte")
+  debug_ShowTables("patient_sample ORDER BY study_id")
   #selectSampleResults("Q,21.2594349.D")
