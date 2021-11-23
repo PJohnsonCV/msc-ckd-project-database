@@ -46,6 +46,56 @@ def generateSingleYChart(xlabels, values, legend=False):
   fig.savefig("test.png")
   plt.show()
 
+def generateMultipleYChart(xlabels, egfr, eGFR_calc, values, legend=False):
+  fig, ax1 = plt.subplots()
+
+  increments = list(range(0, len(xlabels)))
+  stages = [
+    {'stage':'1', 'limit':'>90', 'increments':90},
+    {'stage':'2', 'limit':'60-89', 'increments':60},
+    {'stage':'3a', 'limit':'45-59', 'increments':45},
+    {'stage':'3b', 'limit':'30-44', 'increments':30},
+    {'stage':'4', 'limit':'15-29', 'increments':15},
+    {'stage':'5', 'limit':'0-15', 'increments':0}
+  ]
+
+  color_wheel = [
+    'orange', 'green', 'red', 'purple', 'brown', 'pink', 'grey', 'olive', 'cyan', 'blue'
+  ]
+
+  ax1.set(xlabel='Sample ID / Date', ylabel='eGFR (mL/min/1.73m$^{2}$)', title='Study ID', xticks=range(len(xlabels)))
+  ax1.set_ylim([0,120])
+  
+  #Control lines to deliniate CKD stages approximated by eGFR ranges
+  for control in stages:
+    ax1.plot(increments, numpy.full(len(increments), control['increments']), linewidth='1', color='tab:gray', alpha=0.5)
+    ax1.text(0.1, control['increments'], "Stage "+control['stage']+" ("+control['limit']+")", fontsize=6, color='tab:gray', alpha=0.75)
+  #egfr data
+  ax1.plot(increments, egfr, linewidth='2', color='tab:blue', label='eGFR ({})'.format(eGFR_calc))
+  
+  axs = []
+  for x in values:
+    axs.append(plt.subplot())
+
+  counter = -1
+  for value_set in values:
+    counter+=1
+    if legend != False:
+      axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
+    else:
+      axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
+    if counter > 9: 
+      break
+  ax1.set_xticklabels(xlabels)
+
+  if legend != False:
+    ax1.legend()
+
+  plt.margins(x=0, y=0, tight=True)
+  plt.tight_layout()
+  fig.savefig("test.png")
+  plt.show()
+
 def generateChart2x2(xlabels, values, studyid):
   fig, axs = plt.subplots(6,2, figsize=(5, 5), constrained_layout=True, squeeze=False)
 

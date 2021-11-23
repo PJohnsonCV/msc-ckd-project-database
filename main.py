@@ -39,7 +39,6 @@ def compareEGFRCalculations():
     print(data[1]['GFRE'])
     for cre in data[1]['CRE']:
       if cre != '':
-        print(cre)
         egfr = calculateEGFR(patient, cre)
         mdrd.append(egfr[0])
         epi09.append(egfr[1])
