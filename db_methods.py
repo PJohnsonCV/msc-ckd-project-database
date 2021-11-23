@@ -297,10 +297,25 @@ def tryCatchSelectOne(sql_string, values, method_name):
     dbConn.close()
     return False
 
+def selectOnePatientDetails(patient_id):
+  sql_string = "SELECT study_id, date_of_birth, sex, ethnicity FROM patient WHERE study_id = ?;"
+  results = tryCatchSelectOne(sql_string, (patient_id,), "selectOnePatientDetails")
+  if results != False:
+    patient = {
+      'id': results[0][0],
+      'dob': results[0][1],
+      'age': int(results[0][1]), 
+      'sex': results[0][2],
+      'ethnicity': results[0][3]
+    }
+    return patient
+  return False
+
 if __name__ == "__main__":
 #  initialise()
 #  resetDatabase()
   resetConnection()
   os.system('cls||clear')
-  debug_ShowTables("patient_sample ORDER BY study_id")
+  #debug_ShowTables("patient_sample ORDER BY study_id")
   #selectSampleResults("Q,21.2594349.D")
+  selectOnePatientDetails(53)

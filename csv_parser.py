@@ -83,5 +83,5 @@ def addResult(samp_id, analyte_id, analyte_result):
   db_methods.insertNewResult(samp_id, analyte_id, analyte_result)
 
 os.system('cls||clear')
-processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
+#processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
 #processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")
