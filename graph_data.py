@@ -3,7 +3,7 @@ import numpy
 import db_methods
 from datetime import datetime
 
-def generateSingleYChart(xlabels, values):
+def generateSingleYChart(xlabels, values, legend=False):
   fig, ax1 = plt.subplots()
 
   increments = list(range(0, len(xlabels)))
@@ -31,9 +31,15 @@ def generateSingleYChart(xlabels, values):
   counter = -1
   for value_set in values:
     counter+=1
-    ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
+    if legend != False:
+      ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
+    else:
+      ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
     if counter > 9: counter = -1
   ax1.set_xticklabels(xlabels)
+
+  if legend != False:
+    ax1.legend()
 
   plt.margins(x=0, y=0, tight=True)
   plt.tight_layout()

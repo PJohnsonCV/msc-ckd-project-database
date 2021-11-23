@@ -29,10 +29,11 @@ fxDict = {
 def compareEGFRCalculations():
   patient = db_methods.selectOnePatientDetails(53)
   data = dataGather(53, '1900-01-01', '2021-12-31')
-  print(data)
+  print(patient)
   if data != False:
     mdrd = []
-    epi = [] 
+    epi09 = [] 
+    epi21 = []
     samps = []
     counter = 0
     print(data[1]['GFRE'])
@@ -41,10 +42,11 @@ def compareEGFRCalculations():
         print(cre)
         egfr = calculateEGFR(patient, cre)
         mdrd.append(egfr[0])
-        epi.append(egfr[1])
+        epi09.append(egfr[1])
+        epi21.append(egfr[2])
         samps.append(data[0][counter])
       counter += 1
-    graph.generateSingleYChart(samps, (mdrd, epi))
+    graph.generateSingleYChart(samps, (mdrd, epi09, epi21), ("MDRD", "CKD-EPI 2009", "CKD-EPI 2021"))
 
 def dataGather(study_id, date_from, date_to):
   samp_list=[]
@@ -78,17 +80,24 @@ def dataGather(study_id, date_from, date_to):
   return False 
 
 def calculateEGFR(patient, creat):
-  #ckdepi = min(Creat/SexK, 1)^SexA x max(Cre/SexK, 1)^-1.209 X 0.993^Age x Female (1.018) x Ethnicity (1.159)
-  epiK = {'F': 0.7, 'M': 0.9 }
-  epiA = {'F': -0.329, 'M': -0.411 }
-  epiS = {'F': 1.018, 'M': 1 }
-  ckd_epi = (min((creat/88.4) / epiK[patient['sex']],1) ** epiA[patient['sex']]) * (max((creat/88.4) / epiK[patient['sex']],1) ** -1.209) * (0.993 ** int(patient['age']))
+  creat = creat / 88.4 # umol/L to mg/dL
+  cMod = 'g'
+  if creat <= 0.7:
+    cMod = 'l' 
   
+  #ckdepi = min(Creat/SexK, 1)^SexA x max(Cre/SexK, 1)^-1.209 X 0.993^Age x Female (1.018) x Ethnicity (1.159)
+  epiM = {'F': 144, 'M': 141}
+  epiK = {'F09': 0.7, 'F21': 0.7, 'M09': 0.9, 'M21': 0.9 }
+  epiA = {'F09l': -0.329, 'F09g': -1.209, 'F21l':-0.241, 'F21g': -1.2, 'M09l': -0.411, 'M09g': -1.209, 'M21l':-0.302, 'M21g': -1.2 }
+  epiS = {'F': 1.018, 'M': 1, 'F21': 1.012, 'M21': 1}
+  ckd_epi09 = epiM[patient['sex']] * ((creat/epiK[patient['sex']+'09'])**epiA[patient['sex']+'09'+cMod]) * (0.993 ** patient['age'])  
+  ckd_epi21 = 142 * ((creat/epiK[patient['sex']+'21'])**epiA[patient['sex']+'21'+cMod]) * (0.9938 ** patient['age']) * epiS[patient['sex']+'21']
+
   #mdrd = 175 X creat^-1.154 X age^-0.203 * Female (0.742) * Ethnicity (1.212)
   mdrdS = {'F': 0.742, 'M': 1}
   mdrd = 175 * (creat ** -1.154) * (patient['age'] ** -0.203) * mdrdS[patient['sex']]
-  print(mdrd, ckd_epi)
-  return (mdrd, ckd_epi)
+  print(mdrd, ckd_epi09, ckd_epi21)
+  return (mdrd, ckd_epi09, ckd_epi21)
 
 
 if __name__ == '__main__':
