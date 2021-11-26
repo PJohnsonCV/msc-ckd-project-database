@@ -2,6 +2,7 @@ import csv_parser
 import db_methods
 import graph_data as graph
 import os
+import math
 
 def doNothing():
     return True
@@ -26,17 +27,32 @@ fxDict = {
   '0': doNothing
 }
 
+def compareToParameter(param_code=[]):
+  patient = db_methods.selectOnePatientDetails(53)
+  data = dataGather(53, '1900-01-01', '2021-12-31')
+  if data != False:
+    epi21 = []
+    param_results = []
+    counter=0
+    for p in param_code:
+      if p in data[1].keys():
+        param_results.append(data[1][p]) 
+    for cre in data[1]['CRE']:
+      egfr = calculateEGFR(patient, cre)
+      epi21.append(egfr[2])
+
+    graph.generateMultipleYChart(data[0], epi21, param_results, param_code)
+
 def compareEGFRCalculations():
   patient = db_methods.selectOnePatientDetails(53)
   data = dataGather(53, '1900-01-01', '2021-12-31')
-  print(patient)
+  
   if data != False:
     mdrd = []
     epi09 = [] 
     epi21 = []
     samps = []
     counter = 0
-    print(data[1]['GFRE'])
     for cre in data[1]['CRE']:
       if cre != '':
         egfr = calculateEGFR(patient, cre)
@@ -95,10 +111,27 @@ def calculateEGFR(patient, creat):
   #mdrd = 175 X creat^-1.154 X age^-0.203 * Female (0.742) * Ethnicity (1.212)
   mdrdS = {'F': 0.742, 'M': 1}
   mdrd = 175 * (creat ** -1.154) * (patient['age'] ** -0.203) * mdrdS[patient['sex']]
-  print(mdrd, ckd_epi09, ckd_epi21)
   return (mdrd, ckd_epi09, ckd_epi21)
 
+def calculateEKFR(patient, egfr, acr, years=5):
+  yr = 0.9365
+  if years == 2:
+    yr = 0.9832
+  
+  sex = 0
+  if patient['sex'] == 'M': 
+    sex = 1
+  bSum = (-0.2201 * ((patient['age']/10)-7.036)) + (0.2467 * (sex-0.5642)) - (0.5567*((egfr/5)-7.222)) + (0.4510 * (math.log10(acr/0.113) - 5.137))
+  risk = 1-(yr ** (math.exp(bSum)))
+  return risk
 
 if __name__ == '__main__':
     #mainMenu()
-    compareEGFRCalculations()
+    #patients = [{'sex': 'M', 'age': 42}, {'sex': 'M', 'age': 75}, {'sex': 'F', 'age':71}]
+    #gfs = [22, 91, 89]
+    #acrs = [48.8, 2.4, 2.3]
+    #for x in range(3):
+    #  print("{:.3f}%".format(100*calculateEKFR(patients[x], gfs[x], acrs[x])))
+
+    #compareEGFRCalculations()
+    compareToParameter(["CRE","PHO"])

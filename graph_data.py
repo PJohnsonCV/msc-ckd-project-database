@@ -46,7 +46,7 @@ def generateSingleYChart(xlabels, values, legend=False):
   fig.savefig("test.png")
   plt.show()
 
-def generateMultipleYChart(xlabels, egfr, eGFR_calc, values, legend=False):
+def generateMultipleYChart(xlabels, egfr_values, param_values, legend=False):
   fig, ax1 = plt.subplots()
 
   increments = list(range(0, len(xlabels)))
@@ -71,19 +71,22 @@ def generateMultipleYChart(xlabels, egfr, eGFR_calc, values, legend=False):
     ax1.plot(increments, numpy.full(len(increments), control['increments']), linewidth='1', color='tab:gray', alpha=0.5)
     ax1.text(0.1, control['increments'], "Stage "+control['stage']+" ("+control['limit']+")", fontsize=6, color='tab:gray', alpha=0.75)
   #egfr data
-  ax1.plot(increments, egfr, linewidth='2', color='tab:blue', label='eGFR ({})'.format(eGFR_calc))
+  print("GENERATE")
+  print(egfr_values)
+  ax1.plot(increments, egfr_values, linewidth='2', color='tab:blue', label='CKD-EPI21')
   
-  axs = []
-  for x in values:
-    axs.append(plt.subplot())
+#  axs = []
+#  for x in param_values:
+#    axs.append(plt.subplot())
 
   counter = -1
-  for value_set in values:
+  for value_set in param_values:
+    #ax1.twinx()
     counter+=1
     if legend != False:
-      axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
+      ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
     else:
-      axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
+      ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
     if counter > 9: 
       break
   ax1.set_xticklabels(xlabels)
