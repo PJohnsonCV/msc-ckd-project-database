@@ -75,18 +75,17 @@ def generateMultipleYChart(xlabels, egfr_values, param_values, legend=False):
   print(egfr_values)
   ax1.plot(increments, egfr_values, linewidth='2', color='tab:blue', label='CKD-EPI21')
   
-#  axs = []
-#  for x in param_values:
-#    axs.append(plt.subplot())
+  axs = []
+  for x in param_values:
+    axs.append(ax1.twinx())
 
   counter = -1
   for value_set in param_values:
-    #ax1.twinx()
     counter+=1
     if legend != False:
-      ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
+      axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
     else:
-      ax1.plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
+      axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
     if counter > 9: 
       break
   ax1.set_xticklabels(xlabels)
