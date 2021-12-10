@@ -3,6 +3,20 @@ import numpy
 import db_methods
 from datetime import datetime
 
+ylim = {
+  'SOD': [100, 160, 10],
+  'POT': [2,8, 0.5],
+  'URE': [0, 40, 10],
+  'CRE': [0, 400, 25],
+  'UMICR': [0, 20, 4],
+  'CRP': [0, 300, 50],
+  'PHO': [0, 2, 0.25],
+  'HBA1C': [0, 120, 20],
+  'HB': [0, 165, 20],
+  'HCT': [0, 0.48, 0.12],
+  'MCV': [0, 103, 21]
+}
+
 def generateSingleYChart(xlabels, values, legend=False):
   fig, ax1 = plt.subplots()
 
@@ -71,10 +85,9 @@ def generateMultipleYChart(xlabels, egfr_values, param_values, legend=False):
     ax1.plot(increments, numpy.full(len(increments), control['increments']), linewidth='1', color='tab:gray', alpha=0.5)
     ax1.text(0.1, control['increments'], "Stage "+control['stage']+" ("+control['limit']+")", fontsize=6, color='tab:gray', alpha=0.75)
   #egfr data
-  print("GENERATE")
-  print(egfr_values)
   ax1.plot(increments, egfr_values, linewidth='2', color='tab:blue', label='CKD-EPI21')
-  
+  labels=ax1.get_label()
+
   axs = []
   for x in param_values:
     axs.append(ax1.twinx())
@@ -84,14 +97,20 @@ def generateMultipleYChart(xlabels, egfr_values, param_values, legend=False):
     counter+=1
     if legend != False:
       axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]), label=legend[counter])
+      axs[counter].set_ylim([ylim[legend[counter]][0], ylim[legend[counter]][1]])
+      ticks = numpy.arange(ylim[legend[counter]][0], ylim[legend[counter]][1], ylim[legend[counter]][2])
+      axs[counter].set_yticks(ticks)
+      axs[counter].tick_params(axis='y', which='major', pad=20*counter)
     else:
       axs[counter].plot(increments, value_set, linewidth='2', color='tab:{}'.format(color_wheel[counter]))
     if counter > 9: 
       break
+    axs[counter].tick_params(axis='y', colors='tab:{}'.format(color_wheel[counter]))
   ax1.set_xticklabels(xlabels)
 
   if legend != False:
-    ax1.legend()
+    labs = [l.get_label() for l in axs]
+    ax1.legend(ax1, ['jsghdakjg',], loc=0)
 
   plt.margins(x=0, y=0, tight=True)
   plt.tight_layout()
@@ -110,20 +129,7 @@ def generateChart2x2(xlabels, values, studyid):
     {'stage':'4', 'limit':'15-29', 'increments':15},
     {'stage':'5', 'limit':'0-15', 'increments':0}
   ]
-  ylim = {
-    'SOD': 160,
-    'POT': 8,
-    'URE': 40,
-    'CRE': 400,
-    'UMICR': 20,
-    'CRP': 300,
-    'PHO': 2,
-    'HBA1C': 120,
-    'HB': 165,
-    'HCT': 0.48,
-    'MCV': 103
-  }
-
+  
   for x in range(6):
     for y in range(2):
       if x == 5 and y == 1:
@@ -161,7 +167,7 @@ def generateChart2x2(xlabels, values, studyid):
   for key in ylim.keys():
     if key in values.keys():
       ax+=1
-      ax_list[ax].set_ylim(0,ylim[key]) 
+      ax_list[ax].set_ylim(ylim[key][0],ylim[key][1]) 
       ax_list[ax].set(ylabel=key)
       if len(values[key]) == len(increments):
         ax_list[ax].plot(increments, values[key], linewidth='1', color='tab:red')

@@ -133,5 +133,5 @@ if __name__ == '__main__':
     #for x in range(3):
     #  print("{:.3f}%".format(100*calculateEKFR(patients[x], gfs[x], acrs[x])))
 
-    #compareEGFRCalculations()
-    compareToParameter(["CRE","PHO"])
+    compareEGFRCalculations()
+    #compareToParameter(["CRE","URE",'POT'])
