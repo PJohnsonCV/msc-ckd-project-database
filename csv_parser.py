@@ -20,13 +20,17 @@ identifiers = [
 ]
 
 def selectFile():
-  file_path = input("Type the path and filename: ")
+  os.system('cls||clear')
+  print("Import CSV File\n---------------")
+  print("See README on CSV layout requirements.\n")
+  file_path = input("Drag and drop the file or type the full path and file name (including extension) to process a file. Type QUIT to stop this script: ").strip()
   if file_path.upper() == "QUIT":
       return False
-  elif os.path.isfile(file_path):
-      return file_path
+  elif os.path.isfile(file_path) and file_path.lower()[-4:] == ".csv":
+      print('I worked')
+      processFile(file_path)
   else:
-      print("File not found. Try again or type 'QUIT'.")
+      print("File not found or incorrect type. Try again with a CSV file, or type 'QUIT'.")
       return selectFile()
   
 #If a sample has a urine albumin result, it must be a urine sample
@@ -56,7 +60,8 @@ def processFile(selected_file):
         rcount=rcount+1
     print("End time: " + time.asctime(time.localtime()))     
   else:
-    print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")    
+    print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")  
+  input("Press ENTER to continue")  
 
 def formatDateTime(dict_date, dict_time):
   fdate = "20" + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
@@ -82,6 +87,16 @@ def getAnalyteIDs(tests):
 def addResult(samp_id, analyte_id, analyte_result):
   db_methods.insertNewResult(samp_id, analyte_id, analyte_result)
 
-os.system('cls||clear')
+if __name__ == '__main__':
+  os.system('cls||clear')
+  print("                         !!! WARNING !!!")
+  print("---------------------------------------------------------------------")
+  print("| You are trying to run CSV parser in standalone script mode.       |")
+  print("| This isn't recommended. Instead, use menu.py as a starting point. |")
+  print("| If you intended to use standalone mode, type CONTINUE, otherwise  |")
+  print("| press enter to quit.                                              |")
+  print("---------------------------------------------------------------------")
+  if input("").upper() == "CONTINUE":
+    selectFile()
 #processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
 #processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")
