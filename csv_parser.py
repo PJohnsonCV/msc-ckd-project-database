@@ -3,7 +3,7 @@
 # - Format fields as required for database storage
 # - Use SQL.py methods to insert data to database
 
-from os import X_OK
+#from os import X_OK
 import db_methods
 import csv
 import os.path
@@ -15,10 +15,13 @@ identifiers = [
   "Hospital No.",
   "Lab No/Spec No",
   "Sex",
-  "Age",
-  "LOC"
+  "DOB/Age",
+  "LOC",
+  "MSG"
 ]
 
+# Entry point
+# Select a csv file to feed the processor, or give the option to end the script
 def selectFile():
   os.system('cls||clear')
   print("Import CSV File\n---------------")
@@ -26,57 +29,108 @@ def selectFile():
   file_path = input("Drag and drop the file or type the full path and file name (including extension) to process a file. Type QUIT to stop this script: ").strip()
   if file_path.upper() == "QUIT":
       return False
-  elif os.path.isfile(file_path) and file_path.lower()[-4:] == ".csv":
+  elif fileValidity(file_path) == True:
       print('I worked')
       processFile(file_path)
   else:
       print("File not found or incorrect type. Try again with a CSV file, or type 'QUIT'.")
       return selectFile()
-  
-#If a sample has a urine albumin result, it must be a urine sample
+
+# File must exist and have a .csv extension. I'm not going to check its a csv file beyond that
+def fileValidity(file_path):
+  if os.path.isfile(file_path) and file_path.lower()[-4:] == ".csv":
+    return True
+  return False
+
+# If a sample has a urine albumin result, it must be a urine sample
 def bloodOrUrine(umic_result):
-  if umic_result != "":
+  if umic_result.strip() != "":
     return 0  #urine
   return 1    #blood
 
+# TelePath outputs dates in dd.mm.yy or dd-mm-yy format depending on how close the year 
+# is to being 100 years, i.e. an overlap "-21" = 1921 but ".21" = 2021 
+# Convert to more sensible YYYY-MM-DD hh:mm format 
+def formatDateTime(dict_date, dict_time):
+  prefix = "20"
+  if dict_date[-3] == "-":
+    prefix = "19"
+  fdate = prefix + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
+  return fdate + " " + dict_time
+
+# Dependent on csv, os, and time libraries
 def processFile(selected_file):
-  if selected_file != False:
-    print("Start time: " + time.asctime(time.localtime()))
+  if selected_file != False and fileValidity(selected_file) == True:
+    file_name = os.path.basename(selected_file)
+    insert_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
+    delta_a = time.localtime()
+    print("CSV processor start time: " + time.asctime(delta_a))
     with open(selected_file, 'r') as csv_file:
+      # Puts the file into a dictionary for ease of processing
+      # Need the column headers as referencable items, shove them in a list
       csv_dict = csv.DictReader(csv_file)
       col_names = csv_dict.fieldnames
+      # I wasn't certain I'd locked in the analytes I'd be using when writing this method
+      # This keeps it flexible for different exports that lack/include analytes
       analyte_codes = [test for test in col_names if test not in identifiers]
+      # Regardless of the above, still need to convert exported values to standard IDs
+      # for data reuse / redundancy
       analytes = getAnalyteIDs(analyte_codes)
-      rcount=0
+      
+      rcount = 0
+      count_pt_new = 0
       for row in csv_dict:
         formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
+        formatted_dob = formatDateTime(row['DOB/Age'], '00:00')
         determined_type = bloodOrUrine(row['UMICR'])
-        checkPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=row['Age'])
-        sID = addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'])
+        # Add the patient details to the database
+        if addPatient(pt_id=row['Hospital No.'], pt_sex=row['Sex'], pt_dob=formatted_dob) == 1:
+          count_pt_new += 1
+        # Add the sample details to the database
+        # - Will return false or none if the sample couldn't be added to the db
+        # - Returns the sample ID for newly inserted samples. 0 for an existing sample ID
+        # - TODO: think if a user interrupt is needed for existing sample IDs?
+        sID = addSample(samp_id=row['Lab No/Spec No'], rec_date=formatted_receipt, samp_type=determined_type, pt_id=row['Hospital No.'], loc=row['LOC'], loc_group=row['MSG'])
         if sID != False and sID != None:
+          # Loop over the found analytes in this export file to 'addResults'
           for analyte in analytes:
-            if row[analyte] != "":
-              addResult(samp_id=sID,analyte_id=analytes[analyte],analyte_result=row[analyte])
+            # Still not 100% clear if this will knacker the graphs or not, been weeks since I looked
+            # Might need to retain ALL samples even blanks, would prefer to not store "nothing" though
+            if row[analyte].strip() != "":
+              # Add the analyte result
+              addResult(samp_id=sID, analyte_id=analytes[analyte], analyte_result=row[analyte], date_added=insert_time, filename=file_name)
         rcount=rcount+1
-    print("End time: " + time.asctime(time.localtime()))     
+    
+    # Indicate processing complete, and output the results
+    delta_b = time.localtime()
+    print("CSV processor end time:   " + time.asctime(delta_b))
+    print("Time to process {} records: {}".format(rcount, (delta_b-delta_a)))
+    print(" - {} new patients".format(count_pt_new))
   else:
     print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")  
   input("Press ENTER to continue")  
 
-def formatDateTime(dict_date, dict_time):
-  fdate = "20" + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
-  return fdate + " " + dict_time
+# Methods below are all dependent on db_methods.py
 
-def checkPatient(pt_id, pt_sex, pt_dob):
+# Check if a patient exists before trying to insert it (which would fail if already exists)
+# Return 1 if a new patient added, 0 if not (for user feedback, not utilised)
+def addPatient(pt_id, pt_sex, pt_dob):
   matches = db_methods.selectPatientCount(pt_id)
   if matches == 0:
     db_methods.insertNewPatient(study_id=pt_id, sex=pt_sex, date_of_birth=pt_dob, ethnicity=False)
     return 1
   return 0
 
-def addSample(samp_id, rec_date, samp_type, pt_id):
-  return db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
+# Check is a sample exists before trying to insert it (which would produce key clash errors)
+# Return the sample ID if its new, 0 if it already exists, or the db_method return value for 
+# a failed insert (False)
+def addSample(samp_id, rec_date, samp_type, pt_id, loc, loc_group):
+  matches = db_methods.selectSampleCount(samp_id)
+  if matches == 0:
+    return db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
+  return 0  
 
+# Create a dictionary of analyte IDs as stored in the db to test codes (from CSV files)
 def getAnalyteIDs(tests):
   analytes = {}
   for test in tests:
@@ -84,9 +138,13 @@ def getAnalyteIDs(tests):
     analytes[test] = params[0][0]
   return analytes
 
-def addResult(samp_id, analyte_id, analyte_result):
+# Add results by sample id and analyte. NEW: date added and filename source for auditing
+# of mistakes / duplicated inserts.
+def addResult(samp_id, analyte_id, analyte_result, date_added, filename):
   db_methods.insertNewResult(samp_id, analyte_id, analyte_result)
 
+# Secondary entry point - should avoid running this as just a script. Compile the program
+# and gain access to this module via menu.py instead.
 if __name__ == '__main__':
   os.system('cls||clear')
   print("                         !!! WARNING !!!")
@@ -98,5 +156,6 @@ if __name__ == '__main__':
   print("---------------------------------------------------------------------")
   if input("").upper() == "CONTINUE":
     selectFile()
+
 #processFile(r"C:\\Users\\Paul\\Documents\\gitstuff\\ckd-analysis\\example_data.csv")
 #processFile(r"/home/pjohnson/ckd-analysis/example_data.csv")
