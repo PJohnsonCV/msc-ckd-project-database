@@ -5,7 +5,7 @@ import csv_parser
 def mainMenu():
   os.system('cls||clear')
   print("MAIN MENU\n---------\n\n")
-  print("1: Import new CSV file\n   (Explainer)")
+  print("1: Import new CSV file")
   print("2: Generate images")
   print("3: Inspect database")
   print("4. Exit")
