@@ -1,6 +1,7 @@
 import os
 import sys
 import csv_parser
+import db_menus
 
 def mainMenu():
   os.system('cls||clear')
@@ -18,7 +19,8 @@ def mainMenu():
   elif selection == '2':
     print ("Selected 2")
   elif selection == '3':
-    print ("Selected 3")
+    db_menus.dbMenu()
+    mainMenu()
   elif selection == '4':
     sys.exit()
   else:
