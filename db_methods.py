@@ -3,10 +3,12 @@ import sqlite3
 from sqlite3 import Error
 import db_menus
 import db_statements as sql
-from time import localtime as ltime
+#from time import localtime as ltime
+from datetime import date
 
 # Default settings for sqlite3 connection and cursor
-dbConn = sqlite3.connect("dbtest.db")
+dbname = "study_data.db" #"dbtest.db"
+dbConn = sqlite3.connect(dbname)
 dbCurs = dbConn.cursor()
 #Uncomment to get juicy debug info on errors
 #dbConn.set_trace_callback(print)
@@ -45,7 +47,7 @@ def displayTableRowCount():
   print("TABLE COUNTS\n-----------\n\n")
   for table in tables:
     count = selectTableCount(table)
-    print("{}: {} rows").format(table, count)
+    print("{}: {} rows".format(table, count))
 
 # Pass in the required select from db_statements, and appropriate param values
 # Not sure why I named this ONE, returns ALL rows from the select, or False if
@@ -94,7 +96,7 @@ def initialiseAnalytes():
   try:
     dbCurs.executemany(sql.insert_analytes, known_analytes)
     dbConn.commit() 
-    print("Inserted {} of {} analyte(s)".format(dbCurs.rowcount, known_analytes.count()))
+    print("Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
     print("ERROR [db_methods.initialiseAnalytes]: ", e)
@@ -196,15 +198,22 @@ def selectOnePatientDetails(patient_id):
   sql_string = "SELECT study_id, date_of_birth, sex, ethnicity FROM patient WHERE study_id = ?;"
   results = tryCatchSelectOne(sql_string, (patient_id,), "selectOnePatientDetails")
   if results != False and results != []:
+    age = calculateAge(results[0][1])
     patient = {
       'id': results[0][0],
       'dob': results[0][1],
-      'age': int(results[0][1]), 
+      'age': age, 
       'sex': results[0][2],
       'ethnicity': results[0][3]
     }
     return patient
   return False
+
+def calculateAge(dobstr):
+  dob = date(int(dobstr[:4]), int(dobstr[5:7]), int(dobstr[8:10]))
+  today = date.today()
+  age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+  return age
 
 # Output sample details for all samples associated to a patient_id (based on table patient_sample)
 # Mode 0 Print a list of sample ids (default)

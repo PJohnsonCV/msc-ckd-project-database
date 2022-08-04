@@ -22,10 +22,11 @@ identifiers = [
 
 # Entry point
 # Select a csv file to feed the processor, or give the option to end the script
-def selectFile():
-  os.system('cls||clear')
-  print("Import CSV File\n---------------")
-  print("See README on CSV layout requirements.\n")
+def selectFile(clear=True):
+  if clear == True: 
+    os.system('cls||clear')
+    print("Import CSV File\n---------------")
+    print("See README on CSV layout requirements.\n")
   file_path = input("Drag and drop the file or type the full path and file name (including extension) to process a file. Type QUIT to stop this script: ").strip()
   if file_path.upper() == "QUIT":
       return False
@@ -34,7 +35,7 @@ def selectFile():
       processFile(file_path)
   else:
       print("File not found or incorrect type. Try again with a CSV file, or type 'QUIT'.")
-      return selectFile()
+      return selectFile(False)
 
 # File must exist and have a .csv extension. I'm not going to check its a csv file beyond that
 def fileValidity(file_path):
@@ -51,11 +52,18 @@ def bloodOrUrine(umic_result):
 # TelePath outputs dates in dd.mm.yy or dd-mm-yy format depending on how close the year 
 # is to being 100 years, i.e. an overlap "-21" = 1921 but ".21" = 2021 
 # Convert to more sensible YYYY-MM-DD hh:mm format 
+# UPDATE: Found a case of using slashes in real world data. 
 def formatDateTime(dict_date, dict_time):
-  prefix = "20"
-  if dict_date[-3] == "-":
-    prefix = "19"
-  fdate = prefix + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
+  slash = dict_date.split("/")
+  if len(slash) > 1:
+    if(int(slash[2]) > 2022): 
+      slash[2] = "19" + slash[2][-2:]
+    fdate = slash[2] + "-" + slash[1].rjust(2,"0") + "-" + slash[0].rjust(2,"0")
+  else: 
+    prefix = "20"
+    if dict_date[-3] == "-" or int(dict_date[-2:]) > 22:
+      prefix = "19"
+    fdate = prefix + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
   return fdate + " " + dict_time
 
 # Dependent on csv, os, and time libraries
@@ -104,7 +112,17 @@ def processFile(selected_file):
     # Indicate processing complete, and output the results
     delta_b = time.localtime()
     print("CSV processor end time:   " + time.asctime(delta_b))
-    print("Time to process {} records: {}".format(rcount, (delta_b-delta_a)))
+    hours = (delta_b.tm_hour - delta_a.tm_hour) - 1
+    minutes = (60 - (delta_a.tm_min)) + delta_b.tm_min
+    seconds = (60 - (delta_a.tm_sec)) + delta_b.tm_sec
+    if(seconds >= 60):
+      seconds = seconds - 60
+      minutes = minutes + 1
+    if(minutes >= 60):
+      minutes = minutes - 60
+      hours = hours + 1
+    print("Time to process {} records: {}:{}:{}".format(rcount, hours,minutes, seconds))
+    #print("Time to process {} records: {}".format(rcount, (delta_b-delta_a)))
     print(" - {} new patients".format(count_pt_new))
   else:
     print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")  
@@ -115,8 +133,9 @@ def processFile(selected_file):
 # Check if a patient exists before trying to insert it (which would fail if already exists)
 # Return 1 if a new patient added, 0 if not (for user feedback, not utilised)
 def addPatient(pt_id, pt_sex, pt_dob):
-  matches = db_methods.selectPatientCount(pt_id)
-  if matches == 0:
+  #matches = db_methods.selectPatientCount(pt_id)
+  matches = db_methods.selectOnePatientDetails(pt_id)
+  if matches == False: #0:
     db_methods.insertNewPatient(study_id=pt_id, sex=pt_sex, date_of_birth=pt_dob, ethnicity=False)
     return 1
   return 0
@@ -125,8 +144,9 @@ def addPatient(pt_id, pt_sex, pt_dob):
 # Return the sample ID if its new, 0 if it already exists, or the db_method return value for 
 # a failed insert (False)
 def addSample(samp_id, rec_date, samp_type, pt_id, loc, loc_group):
-  matches = db_methods.selectSampleCount(samp_id)
-  if matches == 0:
+  #matches = db_methods.selectSampleCount(samp_id)
+  matches = db_methods.selectSampleResults(samp_id)
+  if matches == False: #0:
     return db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
   return 0  
 

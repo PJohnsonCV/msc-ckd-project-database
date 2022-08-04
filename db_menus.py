@@ -9,9 +9,10 @@ def dbMenu():
   print("2: Patient queries")
   print("3: Sample queries")
   print("4: Test queries")
+  print("R: Reset Database")
 
   print("6. Quit")
-  selection = input("\nPick a number (1 - 6): ")
+  selection = input("\nPick a number (1 - 6), or 'R': ")
 
   # Developed in VSCode using Python 3.9.2, no match-case available
   if selection == '1':
@@ -24,8 +25,32 @@ def dbMenu():
     sampleMenu()
   elif selection == '4':
     testMenu()
+  elif selection.upper() == "R":
+    resetMenu()
   else:
     exit()
+
+def resetMenu():
+  system('cls||clear')
+  print("RESET DATABASE\n--------------\n\n")
+  print("! ----------------------- !!! WARNING !!! ----------------------- !\n")
+  print("! Resetting the database will result in total data loss.          !\n")
+  print("! Do NOT reset without due cause, and a backup of necessary data. !\n")
+  print("! ----------------------- !!! WARNING !!! ----------------------- !\n\n")
+  selection = input("Type 'QUIT' to go back to the db_menu, or 'CONT' to continue with a reset: ")
+  if selection.upper() == "QUIT":
+    dbMenu()
+  elif selection.upper() == "CONT":
+    print("\nTo confirm you want to reset the database, type the following message: \n")
+    confirm = input("I WANT TO RESET THE DATABASE\n")
+    if confirm.upper() == "I WANT TO RESET THE DATABASE":
+      dblconfirm = input("\nAre you sure? Y/N: ")
+      if dblconfirm.upper() == "Y":
+        db_methods.resetDatabase()
+        input("\nYou have reset the database. Press return to continue.")
+        dbMenu()
+    input("\nDatabase was NOT reset because you cancelled or didn't pass a check. Press return to go back to the menu.\n")
+    dbMenu()
 
 def patientMenu():
   system('cls||clear')
