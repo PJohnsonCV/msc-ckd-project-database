@@ -108,12 +108,14 @@ def processFile(selected_file):
               # Add the analyte result
               addResult(samp_id=sID, analyte_id=analytes[analyte], analyte_result=row[analyte], date_added=insert_time, filename=file_name)
         rcount=rcount+1
+        if rcount < 11 or rcount % 500 == 0:
+          print("-- record {} complet {}".format(str(rcount).rjust(6,"0"), time.asctime(time.localtime())))
     
     # Indicate processing complete, and output the results
     delta_b = time.localtime()
     print("CSV processor end time:   " + time.asctime(delta_b))
     hours = (delta_b.tm_hour - delta_a.tm_hour) - 1
-    minutes = (60 - (delta_a.tm_min)) + delta_b.tm_min
+    minutes = ((60 - (delta_a.tm_min)) + delta_b.tm_min) - 1
     seconds = (60 - (delta_a.tm_sec)) + delta_b.tm_sec
     if(seconds >= 60):
       seconds = seconds - 60
@@ -121,9 +123,9 @@ def processFile(selected_file):
     if(minutes >= 60):
       minutes = minutes - 60
       hours = hours + 1
-    print("Time to process {} records: {}:{}:{}".format(rcount, hours,minutes, seconds))
+    print("Time to process {} records: {}:{}:{}".format(rcount, str(hours).rjust(2,"0"),str(minutes).rjust(2,"0"), str(seconds).rjust(2,"0")))
     #print("Time to process {} records: {}".format(rcount, (delta_b-delta_a)))
-    print(" - {} new patients".format(count_pt_new))
+    print("+ {} new patients".format(count_pt_new))
   else:
     print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")  
   input("Press ENTER to continue")  
@@ -146,7 +148,7 @@ def addPatient(pt_id, pt_sex, pt_dob):
 def addSample(samp_id, rec_date, samp_type, pt_id, loc, loc_group):
   #matches = db_methods.selectSampleCount(samp_id)
   matches = db_methods.selectSampleResults(samp_id)
-  if matches == False: #0:
+  if matches == False or len(matches) == 0: #0:
     return db_methods.insertNewSample(samp_id, rec_date, samp_type, pt_id)
   return 0  
 

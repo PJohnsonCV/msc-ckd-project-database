@@ -48,6 +48,7 @@ def displayTableRowCount():
   for table in tables:
     count = selectTableCount(table)
     print("{}: {} rows".format(table, count))
+  input()
 
 # Pass in the required select from db_statements, and appropriate param values
 # Not sure why I named this ONE, returns ALL rows from the select, or False if
@@ -110,11 +111,11 @@ def insertNewPatient(study_id, date_of_birth, sex=1, ethnicity=0):
     return 0
 
 def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
-  print("In insertNewSample({}, {}, {}, {})".format(sample_id, receipt_date, sample_type, patient_id))
+  #print("In insertNewSample({}, {}, {}, {})".format(sample_id, receipt_date, sample_type, patient_id))
   try:
     dbCurs.execute(sql.insert_sample, (sample_id, receipt_date, sample_type)).lastrowid
     lastID = dbCurs.lastrowid
-    print("New sample, lastID: {}".format(lastID))
+    #print("New sample, lastID: {}".format(lastID))
     dbCurs.execute(sql.insert_ptsamplink, (patient_id, sample_id))
     dbConn.commit() 
     return lastID
@@ -131,13 +132,13 @@ def selectAnalyteParameters(a_code=None):
     return None
 
 def insertNewResult(samp_id, analyte_id, analyte_result):
-  print ("In insertNewResult({}, {}, {})".format(samp_id, analyte_id, analyte_result))
+  #print ("In insertNewResult({}, {}, {})".format(samp_id, analyte_id, analyte_result))
   try:
     dbCurs.execute(sql.insert_result, (analyte_id, analyte_result))
     result = dbCurs.lastrowid
-    print("insertNewResult -> ({}) {} = {}".format(result, analyte_id, analyte_result))
+    #print("insertNewResult -> ({}) {} = {}".format(result, analyte_id, analyte_result))
     dbCurs.execute(sql.insert_sampresultlink, (samp_id, result))
-    print("                -> ({}) {}".format(result, samp_id))
+    #print("                -> ({}) {}".format(result, samp_id))
     dbConn.commit()
     return result
   except Error as e:  
