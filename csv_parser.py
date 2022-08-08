@@ -126,6 +126,8 @@ def processFile(selected_file):
     print("Time to process {} records: {}:{}:{}".format(rcount, str(hours).rjust(2,"0"),str(minutes).rjust(2,"0"), str(seconds).rjust(2,"0")))
     #print("Time to process {} records: {}".format(rcount, (delta_b-delta_a)))
     print("+ {} new patients".format(count_pt_new))
+    db_methods.commitAndClose();
+    print("Committed: ", time.asctime(time.localtime()))
   else:
     print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")  
   input("Press ENTER to continue")  

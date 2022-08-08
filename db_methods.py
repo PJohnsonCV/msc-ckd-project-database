@@ -40,6 +40,10 @@ known_analytes = [
   ("PHO", "Phosphate", "mmol/L")
 ]
 
+def commitAndClose():
+  dbConn.commit()
+
+
 # Print a list of tables and the number of rows each contains. 
 # Purely for user information / curiosity
 def displayTableRowCount():
@@ -96,7 +100,7 @@ def initialiseTables():
 def initialiseAnalytes():
   try:
     dbCurs.executemany(sql.insert_analytes, known_analytes)
-    #dbConn.commit() 
+    dbConn.commit() 
     print("Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
@@ -210,11 +214,73 @@ def selectOnePatientDetails(patient_id):
     return patient
   return False
 
+def selectSampleResultsByID(sample_id):
+  sql_string = """
+    SELECT s.samp_key, s.samp_id_full, s.receipt_date, (CASE s.type WHEN 0 THEN 'Urine' WHEN 1 THEN 'Blood' END), a.code, a.descriptor, r.value, a.units 
+    FROM sample s 
+      JOIN sample_result sr ON (sr.samp_key = s.samp_key) 
+      JOIN result r ON (sr.result_id = r.id)
+      JOIN analyte a ON (r.analyte_id = a.id)
+    WHERE s.samp_id_full LIKE ?;
+  """
+  results = tryCatchSelectOne(sql_string, ("%"+sample_id+"%",), "selectOneSampleResults")
+  return results
+
+def selectSampleResultsByPatientID(patient_id):
+  sql_string = """
+    SELECT s.samp_key, s.samp_id_full, s.receipt_date, (CASE s.type WHEN 0 THEN 'Urine' WHEN 1 THEN 'Blood' END), a.code, a.descriptor, r.value, a.units 
+    FROM sample s 
+      JOIN patient_sample ps ON (ps.samp_key = s.samp_id_full)
+      JOIN sample_result sr ON (sr.samp_key = s.samp_key) 
+      JOIN result r ON (sr.result_id = r.id)
+      JOIN analyte a ON (r.analyte_id = a.id)
+    WHERE ps.study_id = ?
+    ORDER BY s.receipt_date ASC;
+  """
+  results = tryCatchSelectOne(sql_string, (patient_id,), "selectOneSampleResults")
+  return results
+
+
 def calculateAge(dobstr):
   dob = date(int(dobstr[:4]), int(dobstr[5:7]), int(dobstr[8:10]))
   today = date.today()
   age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
   return age
+
+def printSampleResults(sample_id):
+  current_id = ""
+  serum_pivot = {} #{"", {"Sodium":"","POT":"","Urea":""}}
+  results = selectSampleResultsByID(sample_id)
+  if results != False and results != []:
+    for result in results:
+      print("{} | {} | {} | {} | {} ".format(result[1], result[3], result[4], result[6], result[7]))
+      if result[1] not in serum_pivot:
+        serum_pivot[result[1]] = {"Sodium":"", "POT":"", "Urea":"", "CRE":"", "eGFR":"", "AKI":"", "CRP":"", "IHBA1C":"", "HbA1c":"", "Hb":"", "HCT":"", "MCH":"", "PHO":""}
+      serum_pivot[result[1]][result[4]] = result[6]
+    print("Sample No.     | SOD | POT | UREA | CREA | eGFR | AKI | CRP | HbAC | IHbA | Hb  | HCT   | MCH | PHO ")
+    for r in serum_pivot:  
+      print("{} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}".format(r, serum_pivot[r]['Sodium'].ljust(3," "), serum_pivot[r]['POT'].ljust(3, " "), serum_pivot[r]['Urea'].ljust(4, " "), serum_pivot[r]['CRE'].ljust(4, " "), serum_pivot[r]['eGFR'].ljust(4, " "), serum_pivot[r]['AKI'].ljust(3, " "), serum_pivot[r]['CRP'].ljust(3, " "), serum_pivot[r]['IHBA1C'].ljust(4, " "), serum_pivot[r]['HbA1c'].ljust(4, " "), serum_pivot[r]['Hb'].ljust(3, " "), serum_pivot[r]['HCT'].ljust(5, " "), serum_pivot[r]['MCH'].ljust(3, " "), serum_pivot[r]['PHO'].ljust(4, " ")))
+
+  else:
+    print("Sample ID not found.")
+  input("\nPress ENTER to continue.")
+
+def printPatientResults(pat_id):
+  current_id = ""
+  serum_pivot = {} #{"", {"Sodium":"","POT":"","Urea":""}}
+  results = selectSampleResultsByPatientID(pat_id)
+  if results != False and results != []:
+    for result in results:
+      if result[1] not in serum_pivot:
+        serum_pivot[result[1]] = {"Sodium":"", "POT":"", "Urea":"", "CRE":"", "eGFR":"", "AKI":"", "CRP":"", "IHBA1C":"", "HbA1c":"", "Hb":"", "HCT":"", "MCH":"", "PHO":""}
+      serum_pivot[result[1]][result[4]] = result[6]
+    print("Sample No.     | SOD | POT | UREA | CREA | eGFR | AKI | CRP | HbAC | IHbA | Hb  | HCT   | MCH  | PHO ")
+    for r in serum_pivot:  
+      print("{} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}".format(r, serum_pivot[r]['Sodium'].ljust(3," "), serum_pivot[r]['POT'].ljust(3, " "), serum_pivot[r]['Urea'].ljust(4, " "), serum_pivot[r]['CRE'].ljust(4, " "), serum_pivot[r]['eGFR'].ljust(4, " "), serum_pivot[r]['AKI'].ljust(3, " "), serum_pivot[r]['CRP'].ljust(3, " "), serum_pivot[r]['IHBA1C'].ljust(4, " "), serum_pivot[r]['HbA1c'].ljust(4, " "), serum_pivot[r]['Hb'].ljust(3, " "), serum_pivot[r]['HCT'].ljust(5, " "), serum_pivot[r]['MCH'].ljust(4, " "), serum_pivot[r]['PHO'].ljust(4, " ")))
+
+  else:
+    print("Patient ID not found.")
+  input("\nPress ENTER to continue.")
 
 # Output sample details for all samples associated to a patient_id (based on table patient_sample)
 # Mode 0 Print a list of sample ids (default)
@@ -234,7 +300,7 @@ def printPatientSamples(patient_id, mode=0, dfrom='1970-01-01', dto='2199-12-31'
       else:
         stype = "S" if sample[3] == 1 else "U"
         print("{} | {} | {} | {}".format(str(sample[0]).ljust(8), sample[1], sample[2].ljust(16), stype)) #...
-  input("Press ENTER to continue.")
+  input("\nPress ENTER to continue.")
 
 # Select sample details for ALL samples associated to the patient id, no further constraint
 # Use with printPatientSamples

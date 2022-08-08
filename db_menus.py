@@ -73,12 +73,28 @@ def patientMenu():
     date_from = input("Enter from date (YYYY-MM-DD): ")
     date_to = input("Enter to date (YYYY-MM-DD):   ")
     db_methods.printPatientSamples(patient_id,2,date_from, date_to)
+    input()
     patientMenu()
   #else:
     #exit()
 
 def sampleMenu():
-  print("Sample menu")
+  system('cls||clear')
+  print("INSPECT Sample\n----------------\n")
+  print("1: View sample results (RAW)")
+  print("2: Patient blood results (formatted)")
+  print("3: Back to database menu")
+  selection = input("\nPick a number (1 - ): ")
+
+  if selection == "1":
+    sample_id = input("\nEnter a sample number: ")
+    db_methods.printSampleResults(sample_id)
+  elif selection == "2":
+    sample_id = input("\nEnter a patient ID number: ")
+    db_methods.printPatientResults(sample_id)
+  elif selection == "3":
+    dbMenu()
+  sampleMenu()
 
 def testMenu():
   print("Test menu")
