@@ -82,7 +82,7 @@ def selectTableCount(table_name):
 def initialiseTables():
   try: 
     dbCurs.executescript(sql.define_tables)
-    dbConn.commit()
+    #dbConn.commit()
     print("Successfully created tables.")
     return True
   except Error as e:
@@ -96,7 +96,7 @@ def initialiseTables():
 def initialiseAnalytes():
   try:
     dbCurs.executemany(sql.insert_analytes, known_analytes)
-    dbConn.commit() 
+    #dbConn.commit() 
     print("Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
@@ -105,7 +105,7 @@ def initialiseAnalytes():
 def insertNewPatient(study_id, date_of_birth, sex=1, ethnicity=0):
   try:
     dbCurs.execute(sql.insert_patient, (study_id, date_of_birth, sex, ethnicity))
-    dbConn.commit() 
+    #dbConn.commit() 
   except Error as e:
     #print("ERROR [db_methods.insertNewPatient]: ", e)
     return 0
@@ -117,7 +117,7 @@ def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
     lastID = dbCurs.lastrowid
     #print("New sample, lastID: {}".format(lastID))
     dbCurs.execute(sql.insert_ptsamplink, (patient_id, sample_id))
-    dbConn.commit() 
+    #dbConn.commit() 
     return lastID
   except Error as e:
     #print("ERROR [db_methods.insertNewSample]: ", e)
@@ -139,7 +139,7 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
     #print("insertNewResult -> ({}) {} = {}".format(result, analyte_id, analyte_result))
     dbCurs.execute(sql.insert_sampresultlink, (samp_id, result))
     #print("                -> ({}) {}".format(result, samp_id))
-    dbConn.commit()
+    #dbConn.commit()
     return result
   except Error as e:  
     print ("ERROR [db_methods.insertNewResult]: ", e)

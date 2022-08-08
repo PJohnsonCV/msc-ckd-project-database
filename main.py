@@ -126,12 +126,12 @@ def calculateEKFR(patient, egfr, acr, years=5):
   return risk
 
 if __name__ == '__main__':
-    #mainMenu()
+    mainMenu()
     #patients = [{'sex': 'M', 'age': 42}, {'sex': 'M', 'age': 75}, {'sex': 'F', 'age':71}]
     #gfs = [22, 91, 89]
     #acrs = [48.8, 2.4, 2.3]
     #for x in range(3):
     #  print("{:.3f}%".format(100*calculateEKFR(patients[x], gfs[x], acrs[x])))
 
-    compareEGFRCalculations()
+    #compareEGFRCalculations()
     #compareToParameter(["CRE","URE",'POT'])
