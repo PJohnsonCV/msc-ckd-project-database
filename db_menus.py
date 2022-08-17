@@ -11,7 +11,7 @@ def dbMenu():
   print("4: Test queries")
   print("R: Reset Database")
 
-  print("6. Quit")
+  print("9. Quit")
   selection = input("\nPick a number (1 - 6), or 'R': ")
 
   # Developed in VSCode using Python 3.9.2, no match-case available
@@ -25,6 +25,9 @@ def dbMenu():
     sampleMenu()
   elif selection == '4':
     testMenu()
+  elif selection == '5':
+    db_methods.initialiseTables()
+    exit()
   elif selection.upper() == "R":
     resetMenu()
   else:

@@ -43,6 +43,19 @@ define_tables = """
     FOREIGN KEY (samp_key) REFERENCES sample (samp_key) ON DELETE CASCADE ON UPDATE NO ACTION,
     FOREIGN KEY (samp_key) REFERENCES result (id) ON DELETE CASCADE ON UPDATE NO ACTION
   );
+
+  CREATE TABLE IF NOT EXISTS linear_regression (
+    study_id INTEGER,
+    samples_hash TEXT NOT NULL,
+    date_updated TEXT NOT NULL,
+    slope REAL,
+    intercept REAL,
+    r REAL,
+    p REAL,
+    std_err REAL,
+    PRIMARY KEY (study_id, samples_hash),
+    FOREIGN KEY (study_id) REFERENCES patient (study_id) ON DELETE CASCADE ON UPDATE NO ACTION
+  )
 """
 insert_analytes = """
   INSERT OR IGNORE INTO analyte (code, descriptor, units) VALUES (?, ?, ?);
@@ -62,6 +75,10 @@ insert_result = """
 insert_sampresultlink = """
   INSERT INTO sample_result (samp_key, result_id) VALUES (?, ?);
 """
+insert_linearregression = """
+  INSERT INTO linear_regression (study_id, samples_hash, date_updated, slope, intercept, r, p, std_err) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+"""
+
 bobby_tables = """
   DROP TABLE IF EXISTS patient;
   DROP TABLE IF EXISTS sample;
@@ -69,4 +86,5 @@ bobby_tables = """
   DROP TABLE IF EXISTS result;
   DROP TABLE IF EXISTS patient_sample;
   DROP TABLE IF EXISTS sample_result;
+  DROP TABLE IF EXISTS linear_regression;
 """

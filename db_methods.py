@@ -15,7 +15,7 @@ dbCurs = dbConn.cursor()
 
 # Unordered list of all table names present in the database
 tables = [
-  'patient', 'sample', 'patient_sample', 'analyte', 'result', 'sample_result'
+  'patient', 'sample', 'patient_sample', 'analyte', 'result', 'sample_result', 'linear_regression',
 ]
 
 # List of analyte tuples: 
@@ -48,7 +48,7 @@ def commitAndClose():
 # Purely for user information / curiosity
 def displayTableRowCount():
   os.system('cls||clear')
-  print("TABLE COUNTS\n-----------\n\n")
+  print("TABLE COUNTS\n-----------\n")
   for table in tables:
     count = selectTableCount(table)
     print("{}: {} rows".format(table, count))
@@ -148,7 +148,15 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
   except Error as e:  
     print ("ERROR [db_methods.insertNewResult]: ", e)
     return 0
-   
+
+def insertNewLinearRegression(pid=0, hash=0, updated='2022-08-17 00:00', s=0, i=0, r=0, p=0, err=0):
+  try:
+    dbCurs.execute(sql.insert_linearregression, (pid, hash, updated,s, i, r, p, err))
+    return True
+  except Error as e:
+    print("ERROR [db_methods.insertNewLinearRegression]: ", e)
+    return False
+
 # Initialisation / reset of database
 # Deletes tables if the exist, then creates them 
 # Populates the analytes table with default values
@@ -164,8 +172,6 @@ def resetDatabase():
     print(', '.join(str(item) for item in tables))
   except Error as e:
     print("Error deleting tables, ", e)
-
-
 
 def selectSampleResults(samp_number):
   sql_string = """
@@ -322,6 +328,44 @@ def selectPatientSamplesDateRange(patient_id, date_from, date_to):
   if results != False and results != []:
     return results
   return False
+
+# Select linear regression data for a known patient ID + hash combination 
+# Used by methods to prevent duplication of statistical work
+def selectRegressionByPIDHash(pid=0, hash=0):
+  sql_string = """
+    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
+    FROM linear_regression lr
+    WHERE lr.study_id=? AND lr.samples_hash=?;
+  """
+  print(pid, hash)
+  results = tryCatchSelectOne(sql_string, (pid, hash,), "selectRegressionByPIDHash")
+  return results
+
+# Select only the latest row of linear regression data for a known patient ID
+# Used for graphing/reading data without calling an update/insert
+def selectLatestRegressionByPID(pid=0):
+  sql_string = """
+    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
+    FROM linear_regression lr
+    WHERE lr.study_id = ? 
+    ORDER BY lr.date_updated DESC
+    LIMIT 1;
+  """
+  results = tryCatchSelectOne(sql_string, (pid, ), "selectLatestRegressionByPID")
+  return results
+
+# Select only the hash and date updated of linear regression for all records pertaining to a patient id
+# Used to enable selection of specific data - in combination with selectRegressionByPIDHash
+def selectRegressionHashPID(pid=0):
+  sql_string = """
+    SELECT lr.samples_hash, lr.date_updated 
+    FROM linear_regression lr
+    WHERE lr.study_id = ? 
+    ORDER BY lr.date_updated DESC
+  """
+  results = tryCatchSelectOne(sql_string, (pid, ), "selectRegressionHashPID")
+  return results
+
 
 # Secondary entry point - should avoid running this as just a script. Compile the program
 # and gain access to this module via menu.py (or db_menus.py) instead.
