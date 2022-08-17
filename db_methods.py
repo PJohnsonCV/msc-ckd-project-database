@@ -242,7 +242,10 @@ def selectSampleResultsByPatientID(patient_id):
 
 
 def calculateAge(dobstr):
-  dob = date(int(dobstr[:4]), int(dobstr[5:7]), int(dobstr[8:10]))
+  try:
+    dob = date(int(dobstr[:4]), int(dobstr[5:7]), int(dobstr[8:10]))
+  except:
+    print("Failed on dobstr: ", dobstr)
   today = date.today()
   age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
   return age

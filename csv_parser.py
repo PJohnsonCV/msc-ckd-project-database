@@ -56,7 +56,7 @@ def bloodOrUrine(umic_result):
 def formatDateTime(dict_date, dict_time):
   slash = dict_date.split("/")
   if len(slash) > 1:
-    if(int(slash[2]) > 2022): 
+    if(int(slash[2]) > 2016): 
       slash[2] = "19" + slash[2][-2:]
     fdate = slash[2] + "-" + slash[1].rjust(2,"0") + "-" + slash[0].rjust(2,"0")
   else: 
@@ -129,7 +129,7 @@ def processFile(selected_file):
     db_methods.commitAndClose();
     print("Committed: ", time.asctime(time.localtime()))
   else:
-    print("ERROR [csv_parser.processFile]: Called method with bad selected_file string.")  
+    print("ERROR [csv_parser.processFile]: Called methoddata/ with bad selected_file string.")  
   input("Press ENTER to continue")  
 
 # Methods below are all dependent on db_methods.py
