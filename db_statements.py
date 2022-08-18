@@ -48,6 +48,7 @@ define_tables = """
     study_id INTEGER,
     samples_hash TEXT NOT NULL,
     date_updated TEXT NOT NULL,
+    sample_count INTEGER,
     slope REAL,
     intercept REAL,
     r REAL,
@@ -57,6 +58,11 @@ define_tables = """
     FOREIGN KEY (study_id) REFERENCES patient (study_id) ON DELETE CASCADE ON UPDATE NO ACTION
   )
 """
+
+linreg_update = """
+  DROP TABLE IF EXISTS linear_regression;
+"""
+
 insert_analytes = """
   INSERT OR IGNORE INTO analyte (code, descriptor, units) VALUES (?, ?, ?);
 """
@@ -76,7 +82,7 @@ insert_sampresultlink = """
   INSERT INTO sample_result (samp_key, result_id) VALUES (?, ?);
 """
 insert_linearregression = """
-  INSERT INTO linear_regression (study_id, samples_hash, date_updated, slope, intercept, r, p, std_err) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+  INSERT INTO linear_regression (study_id, samples_hash, date_updated, sample_count, slope, intercept, r, p, std_err) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 """
 
 bobby_tables = """

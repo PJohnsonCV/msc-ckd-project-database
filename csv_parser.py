@@ -30,12 +30,22 @@ def selectFile(clear=True):
   file_path = input("Drag and drop the file or type the full path and file name (including extension) to process a file. Type QUIT to stop this script: ").strip()
   if file_path.upper() == "QUIT":
       return False
-  elif fileValidity(file_path) == True:
-      print('I worked')
-      processFile(file_path)
   else:
-      print("File not found or incorrect type. Try again with a CSV file, or type 'QUIT'.")
-      return selectFile(False)
+    if file_path.find(",") > -1:
+      for file in file_path.split(","):
+        if fileValidity(file) == True:
+          print('I worked: {}'.format(file))
+          processFile(file)
+        else:
+          print("File ({}) not found or incorrect type. Try again with a CSV file, or type 'QUIT'.".format(file))
+          return selectFile(False)  
+    else:
+      if fileValidity(file_path) == True:
+        print('I worked: {}'.format(file_path))
+        processFile(file_path)
+      else:
+        print("File ({}) not found or incorrect type. Try again with a CSV file, or type 'QUIT'.".format(file_path))
+        return selectFile(False)
 
 # File must exist and have a .csv extension. I'm not going to check its a csv file beyond that
 def fileValidity(file_path):

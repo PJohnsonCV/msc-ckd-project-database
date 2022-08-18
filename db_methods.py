@@ -94,6 +94,13 @@ def initialiseTables():
     print("ERROR [db_methods.initialiseTables]: ", e)
     return False
 
+def alterTables():
+  try:
+    dbCurs.executescript(sql.linreg_update)
+    print("Successfully altered table: ", sql.linreg_update)
+  except Error as e:
+    print("ERROR [db_methods.alterTables]: ", e)
+
 # Populates the analytes table with the defined list, known_analytes
 # Outputs the completion with the number of rows (assumed .rowcount
 # is accurate), or the error code as necessary
@@ -149,9 +156,9 @@ def insertNewResult(samp_id, analyte_id, analyte_result):
     print ("ERROR [db_methods.insertNewResult]: ", e)
     return 0
 
-def insertNewLinearRegression(pid=0, hash=0, updated='2022-08-17 00:00', s=0, i=0, r=0, p=0, err=0):
+def insertNewLinearRegression(pid=0, hash=0, updated='2022-08-17 00:00', n=0, s=0, i=0, r=0, p=0, err=0):
   try:
-    dbCurs.execute(sql.insert_linearregression, (pid, hash, updated,s, i, r, p, err))
+    dbCurs.execute(sql.insert_linearregression, (pid, hash, updated, n, s, i, r, p, err))
     return True
   except Error as e:
     print("ERROR [db_methods.insertNewLinearRegression]: ", e)
@@ -333,11 +340,11 @@ def selectPatientSamplesDateRange(patient_id, date_from, date_to):
 # Used by methods to prevent duplication of statistical work
 def selectRegressionByPIDHash(pid=0, hash=0):
   sql_string = """
-    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
+    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.sample_count, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
     FROM linear_regression lr
     WHERE lr.study_id=? AND lr.samples_hash=?;
   """
-  print(pid, hash)
+  #print(pid, hash)
   results = tryCatchSelectOne(sql_string, (pid, hash,), "selectRegressionByPIDHash")
   return results
 
@@ -345,13 +352,18 @@ def selectRegressionByPIDHash(pid=0, hash=0):
 # Used for graphing/reading data without calling an update/insert
 def selectLatestRegressionByPID(pid=0):
   sql_string = """
-    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
+    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.sample_count, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
     FROM linear_regression lr
     WHERE lr.study_id = ? 
     ORDER BY lr.date_updated DESC
     LIMIT 1;
   """
-  results = tryCatchSelectOne(sql_string, (pid, ), "selectLatestRegressionByPID")
+  if pid == 0:
+    sql_string = sql_string.replace("WHERE lr.study_id = ? ", " ")
+    sql_string = sql_string.replace("LIMIT 1", " ")
+    results = tryCatchSelectOne(sql_string, (), "selectLatestRegressionByPID")
+  else:
+    results = tryCatchSelectOne(sql_string, (pid, ), "selectLatestRegressionByPID")
   return results
 
 # Select only the hash and date updated of linear regression for all records pertaining to a patient id
@@ -371,4 +383,5 @@ def selectRegressionHashPID(pid=0):
 # and gain access to this module via menu.py (or db_menus.py) instead.
 # Serious harm can come from playing about with the database in unstructured ways. KTHX
 if __name__ == '__main__':
+    #alterTables()
     db_menus.dbMenu()
