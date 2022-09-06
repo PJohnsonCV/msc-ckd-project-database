@@ -1,22 +1,14 @@
-import os
 import sqlite3
 from sqlite3 import Error
-import db_menus
-import db_statements as sql
-#from time import localtime as ltime
-from datetime import date
+import new_sql as sql
+import new_menus as menu
+import logging
+logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
 
 # Default settings for sqlite3 connection and cursor
-dbname = "study_data.db" #"dbtest.db"
+dbname = "study_data_v2.db" #odg don't overwrite the original
 dbConn = sqlite3.connect(dbname)
 dbCurs = dbConn.cursor()
-#Uncomment to get juicy debug info on errors
-#dbConn.set_trace_callback(print)
-
-# Unordered list of all table names present in the database
-tables = [
-  'patient', 'sample', 'patient_sample', 'analyte', 'result', 'sample_result', 'linear_regression',
-]
 
 # List of analyte tuples: 
 # - Code as it is output by TelePath gather
@@ -40,66 +32,17 @@ known_analytes = [
   ("PHO", "Phosphate", "mmol/L")
 ]
 
-def commitAndClose():
-  dbConn.commit()
-
-
-# Print a list of tables and the number of rows each contains. 
-# Purely for user information / curiosity
-def displayTableRowCount():
-  os.system('cls||clear')
-  print("TABLE COUNTS\n-----------\n")
-  for table in tables:
-    count = selectTableCount(table)
-    print("{}: {} rows".format(table, count))
-  input()
-
-# Pass in the required select from db_statements, and appropriate param values
-# Not sure why I named this ONE, returns ALL rows from the select, or False if
-# an execution error. 
-# Minimises code reuse for all the selects used in the module. 
-def tryCatchSelectOne(sql_string, values, method_name):
-  try:
-    dbCurs.execute(sql_string, values)
-    rows = dbCurs.fetchall()
-    return rows
-  except Error as e:
-    print("db_methods.py '{}' error: {}".format(method_name, e))
-    #dbConn.close()
-    return False
-
-# Reusable select to get the number of rows in a table where the name is provided as a parameter
-# Returns the value as a string (number or error message)
-# Probably completely unsafe to do a string.format adding in a table name
-# No type checking or other string sanitation - BAD! But couldn't think 
-# of a way to do this without hardcoding multiple selects per table.
-def selectTableCount(table_name):
-  sql_string = "SELECT count(*) FROM {};".format(table_name)
-  response = tryCatchSelectOne(sql_string, "", "selectTableCount")
-  if response != False:
-    response = response[0][0]
-  return response
-
 # Commits the CREATE TABLE script for all tables in one go
 # Returns true on success or false on failure
 # Only instance of executescript() in module, no need to refactor
 def initialiseTables():
   try: 
     dbCurs.executescript(sql.define_tables)
-    #dbConn.commit()
-    print("Successfully created tables.")
+    logging.info("dbmethods.py - Successfully created tables.")
     return True
   except Error as e:
-    #dbConn.close()
-    print("ERROR [db_methods.initialiseTables]: ", e)
+    logging.error("dbmethods.py - ", e)
     return False
-
-def alterTables():
-  try:
-    dbCurs.executescript(sql.linreg_update)
-    print("Successfully altered table: ", sql.linreg_update)
-  except Error as e:
-    print("ERROR [db_methods.alterTables]: ", e)
 
 # Populates the analytes table with the defined list, known_analytes
 # Outputs the completion with the number of rows (assumed .rowcount
@@ -108,61 +51,10 @@ def initialiseAnalytes():
   try:
     dbCurs.executemany(sql.insert_analytes, known_analytes)
     dbConn.commit() 
-    print("Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
+    logging.info("dbmethods.py - Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
-    print("ERROR [db_methods.initialiseAnalytes]: ", e)
-
-def insertNewPatient(study_id, date_of_birth, sex=1, ethnicity=0):
-  try:
-    dbCurs.execute(sql.insert_patient, (study_id, date_of_birth, sex, ethnicity))
-    #dbConn.commit() 
-  except Error as e:
-    #print("ERROR [db_methods.insertNewPatient]: ", e)
-    return 0
-
-def insertNewSample(sample_id, receipt_date, sample_type, patient_id):
-  #print("In insertNewSample({}, {}, {}, {})".format(sample_id, receipt_date, sample_type, patient_id))
-  try:
-    dbCurs.execute(sql.insert_sample, (sample_id, receipt_date, sample_type)).lastrowid
-    lastID = dbCurs.lastrowid
-    #print("New sample, lastID: {}".format(lastID))
-    dbCurs.execute(sql.insert_ptsamplink, (patient_id, sample_id))
-    #dbConn.commit() 
-    return lastID
-  except Error as e:
-    #print("ERROR [db_methods.insertNewSample]: ", e)
-    return 0
-
-def selectAnalyteParameters(a_code=None):
-  try:
-    dbCurs.execute("""SELECT id, code, descriptor, units FROM analyte WHERE code=?;""", [a_code])
-    return dbCurs.fetchall()
-  except Error as e:
-    print("ERROR [db_methods.selectAnalyteParameters]: ", e)
-    return None
-
-def insertNewResult(samp_id, analyte_id, analyte_result):
-  #print ("In insertNewResult({}, {}, {})".format(samp_id, analyte_id, analyte_result))
-  try:
-    dbCurs.execute(sql.insert_result, (analyte_id, analyte_result))
-    result = dbCurs.lastrowid
-    #print("insertNewResult -> ({}) {} = {}".format(result, analyte_id, analyte_result))
-    dbCurs.execute(sql.insert_sampresultlink, (samp_id, result))
-    #print("                -> ({}) {}".format(result, samp_id))
-    #dbConn.commit()
-    return result
-  except Error as e:  
-    print ("ERROR [db_methods.insertNewResult]: ", e)
-    return 0
-
-def insertNewLinearRegression(pid=0, hash=0, updated='2022-08-17 00:00', n=0, s=0, i=0, r=0, p=0, err=0):
-  try:
-    dbCurs.execute(sql.insert_linearregression, (pid, hash, updated, n, s, i, r, p, err))
-    return True
-  except Error as e:
-    print("ERROR [db_methods.insertNewLinearRegression]: ", e)
-    return False
+    logging.error("dbmethods.py - ", e)
 
 # Initialisation / reset of database
 # Deletes tables if the exist, then creates them 
@@ -171,217 +63,69 @@ def insertNewLinearRegression(pid=0, hash=0, updated='2022-08-17 00:00', n=0, s=
 def resetDatabase():
   try:
     dbCurs.executescript(sql.bobby_tables)
-    print("Tables deleted")
+    logging.info("dbmethods.py - Tables deleted")
     if initialiseTables():
       initialiseAnalytes()
-    displayTableRowCount()
-    print("The following list of tables should be shown above: ")
-    print(', '.join(str(item) for item in tables))
   except Error as e:
-    print("Error deleting tables, ", e)
+    logging.error("Deleting tables, ", e)
 
-def selectSampleResults(samp_number):
-  sql_string = """
-    SELECT s.samp_id_full as 'SampleNo', 
-           a.code as 'Analyte',
-           r.value as 'Result',
-           a.units as 'Units'
-    FROM sample s
-      JOIN sample_result sr ON (sr.samp_key = s.samp_key)
-      JOIN result r ON (sr.result_id = r.id)
-      JOIN analyte a ON (r.analyte_id = a.id)
-    WHERE s.samp_id_full = ?;
-  """
-  results = tryCatchSelectOne(sql_string, (samp_number,), "selectSampleResults")
-  return results
-
-# Output patient data and count of samples associated with them
-# Pass in integer patient_id
-def printPatientDetails(patient_id):
-  pt = selectOnePatientDetails(patient_id)
-  if pt != False:
-    age = "x"
-    # Absolutely exploiting my lack of sanitation in selectTableCount 
-    # addition of WHERE allows constraint of count to rows containing study_id
-    sample_count = selectTableCount("patient_sample WHERE study_id={}".format(patient_id))
-    print("ID: {} | DOB: {} (Age={}) | SEX: {} | ETHNICITY: {}".format(pt['id'],pt['dob'],age,pt['sex'],pt['ethnicity']))
-    print("This patient has {} samples associated with their ID.\n".format(sample_count))
-  else:
-    print("The patient wasn't found (or an error occurred).\n")
-  input("Press ENTER to continue.")
-
-# Select row values from table: patient, for a given id
-# Use with printPatientDetails to output 
-def selectOnePatientDetails(patient_id):
-  sql_string = "SELECT study_id, date_of_birth, sex, ethnicity FROM patient WHERE study_id = ?;"
-  results = tryCatchSelectOne(sql_string, (patient_id,), "selectOnePatientDetails")
-  if results != False and results != []:
-    age = calculateAge(results[0][1])
-    patient = {
-      'id': results[0][0],
-      'dob': results[0][1],
-      'age': age, 
-      'sex': results[0][2],
-      'ethnicity': results[0][3]
-    }
-    return patient
-  return False
-
-def selectSampleResultsByID(sample_id):
-  sql_string = """
-    SELECT s.samp_key, s.samp_id_full, s.receipt_date, (CASE s.type WHEN 0 THEN 'Urine' WHEN 1 THEN 'Blood' END), a.code, a.descriptor, r.value, a.units 
-    FROM sample s 
-      JOIN sample_result sr ON (sr.samp_key = s.samp_key) 
-      JOIN result r ON (sr.result_id = r.id)
-      JOIN analyte a ON (r.analyte_id = a.id)
-    WHERE s.samp_id_full LIKE ?;
-  """
-  results = tryCatchSelectOne(sql_string, ("%"+sample_id+"%",), "selectOneSampleResults")
-  return results
-
-def selectSampleResultsByPatientID(patient_id):
-  sql_string = """
-    SELECT s.samp_key, s.samp_id_full, s.receipt_date, (CASE s.type WHEN 0 THEN 'Urine' WHEN 1 THEN 'Blood' END), a.code, a.descriptor, r.value, a.units 
-    FROM sample s 
-      JOIN patient_sample ps ON (ps.samp_key = s.samp_id_full)
-      JOIN sample_result sr ON (sr.samp_key = s.samp_key) 
-      JOIN result r ON (sr.result_id = r.id)
-      JOIN analyte a ON (r.analyte_id = a.id)
-    WHERE ps.study_id = ?
-    ORDER BY s.receipt_date ASC;
-  """
-  results = tryCatchSelectOne(sql_string, (patient_id,), "selectOneSampleResults")
-  return results
-
-
-def calculateAge(dobstr):
+# Pass in the required select from db_statements, and appropriate param values
+# Not sure why I named this ONE, returns ALL rows from the select, or False if
+# an execution error. 
+# Minimises code reuse for all the selects used in the module. 
+def tryCatchSelect(sql_string, values, method_name):
   try:
-    dob = date(int(dobstr[:4]), int(dobstr[5:7]), int(dobstr[8:10]))
-  except:
-    print("Failed on dobstr: ", dobstr)
-  today = date.today()
-  age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-  return age
+    dbCurs.execute(sql_string, values)
+    rows = dbCurs.fetchall()
+    return rows
+  except Error as e:
+    logging.debug("tryCatchSelect sql_string [{}], values [{}], method_name [{}]".format(sql_string, values, method_name))
+    logging.error("tryCatchSelect from {}, error: ".format(method_name, e))
+    return False
 
-def printSampleResults(sample_id):
-  current_id = ""
-  serum_pivot = {} #{"", {"Sodium":"","POT":"","Urea":""}}
-  results = selectSampleResultsByID(sample_id)
-  if results != False and results != []:
-    for result in results:
-      print("{} | {} | {} | {} | {} ".format(result[1], result[3], result[4], result[6], result[7]))
-      if result[1] not in serum_pivot:
-        serum_pivot[result[1]] = {"Sodium":"", "POT":"", "Urea":"", "CRE":"", "eGFR":"", "AKI":"", "CRP":"", "IHBA1C":"", "HbA1c":"", "Hb":"", "HCT":"", "MCH":"", "PHO":""}
-      serum_pivot[result[1]][result[4]] = result[6]
-    print("Sample No.     | SOD | POT | UREA | CREA | eGFR | AKI | CRP | HbAC | IHbA | Hb  | HCT   | MCH | PHO ")
-    for r in serum_pivot:  
-      print("{} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}".format(r, serum_pivot[r]['Sodium'].ljust(3," "), serum_pivot[r]['POT'].ljust(3, " "), serum_pivot[r]['Urea'].ljust(4, " "), serum_pivot[r]['CRE'].ljust(4, " "), serum_pivot[r]['eGFR'].ljust(4, " "), serum_pivot[r]['AKI'].ljust(3, " "), serum_pivot[r]['CRP'].ljust(3, " "), serum_pivot[r]['IHBA1C'].ljust(4, " "), serum_pivot[r]['HbA1c'].ljust(4, " "), serum_pivot[r]['Hb'].ljust(3, " "), serum_pivot[r]['HCT'].ljust(5, " "), serum_pivot[r]['MCH'].ljust(3, " "), serum_pivot[r]['PHO'].ljust(4, " ")))
+# Helper functions help keep things tidy!
+def commit():
+  dbConn.commit()
+  logging.info("Database committed")
 
-  else:
-    print("Sample ID not found.")
-  input("\nPress ENTER to continue.")
-
-def printPatientResults(pat_id):
-  current_id = ""
-  serum_pivot = {} #{"", {"Sodium":"","POT":"","Urea":""}}
-  results = selectSampleResultsByPatientID(pat_id)
-  if results != False and results != []:
-    for result in results:
-      if result[1] not in serum_pivot:
-        serum_pivot[result[1]] = {"Sodium":"", "POT":"", "Urea":"", "CRE":"", "eGFR":"", "AKI":"", "CRP":"", "IHBA1C":"", "HbA1c":"", "Hb":"", "HCT":"", "MCH":"", "PHO":""}
-      serum_pivot[result[1]][result[4]] = result[6]
-    print("Sample No.     | SOD | POT | UREA | CREA | eGFR | AKI | CRP | HbAC | IHbA | Hb  | HCT   | MCH  | PHO ")
-    for r in serum_pivot:  
-      print("{} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}".format(r, serum_pivot[r]['Sodium'].ljust(3," "), serum_pivot[r]['POT'].ljust(3, " "), serum_pivot[r]['Urea'].ljust(4, " "), serum_pivot[r]['CRE'].ljust(4, " "), serum_pivot[r]['eGFR'].ljust(4, " "), serum_pivot[r]['AKI'].ljust(3, " "), serum_pivot[r]['CRP'].ljust(3, " "), serum_pivot[r]['IHBA1C'].ljust(4, " "), serum_pivot[r]['HbA1c'].ljust(4, " "), serum_pivot[r]['Hb'].ljust(3, " "), serum_pivot[r]['HCT'].ljust(5, " "), serum_pivot[r]['MCH'].ljust(4, " "), serum_pivot[r]['PHO'].ljust(4, " ")))
-
-  else:
-    print("Patient ID not found.")
-  input("\nPress ENTER to continue.")
-
-# Output sample details for all samples associated to a patient_id (based on table patient_sample)
-# Mode 0 Print a list of sample ids (default)
-# Mode 1 Print a table of sample details 
-# Mode 2 Print a table of sample details for samples in a range of dates 
-def printPatientSamples(patient_id, mode=0, dfrom='1970-01-01', dto='2199-12-31'):
-  if mode == 0 or mode == 1:
-    results = selectPatientSamplesAll(patient_id)
-  else:
-    results = selectPatientSamplesDateRange(patient_id, dfrom, dto)
-
-  if results != False and results != []:
-    print("ID       | Sample Num.    | Received         | Type\n----------------------------------------------------")
-    for sample in results:
-      if mode == 0:
-        print("           {}".format(sample[1]))
-      else:
-        stype = "S" if sample[3] == 1 else "U"
-        print("{} | {} | {} | {}".format(str(sample[0]).ljust(8), sample[1], sample[2].ljust(16), stype)) #...
-  input("\nPress ENTER to continue.")
-
-# Select sample details for ALL samples associated to the patient id, no further constraint
-# Use with printPatientSamples
-def selectPatientSamplesAll(patient_id):
-  sql_string = "SELECT s.samp_key, s.samp_id_full, s.receipt_date, s.type FROM sample s JOIN patient_sample ps ON (s.samp_id_full=ps.samp_key) WHERE ps.study_id=?;"
-  results = tryCatchSelectOne(sql_string, (patient_id,), "selectPatientSamplesAll")
-  if results != False and results != []:
-    return results
-  return False
-
-# Select sample details for ALL samples associated to the patient id, between two dates (inclusive)
-# Use with printPatientSamples
-def selectPatientSamplesDateRange(patient_id, date_from, date_to):
-  sql_string = "SELECT s.samp_key, s.samp_id_full, s.receipt_date, s.type FROM sample s JOIN patient_sample ps ON (s.samp_id_full=ps.samp_key) WHERE ps.study_id=? AND s.receipt_date >= ? AND s.receipt_date <= ?;"
-  results = tryCatchSelectOne(sql_string, (patient_id, date_from, date_to,), "selectPatientSamplesDateRange")
-  if results != False and results != []:
-    return results
-  return False
-
-# Select linear regression data for a known patient ID + hash combination 
-# Used by methods to prevent duplication of statistical work
-def selectRegressionByPIDHash(pid=0, hash=0):
-  sql_string = """
-    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.sample_count, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
-    FROM linear_regression lr
-    WHERE lr.study_id=? AND lr.samples_hash=?;
-  """
-  #print(pid, hash)
-  results = tryCatchSelectOne(sql_string, (pid, hash,), "selectRegressionByPIDHash")
+def patientSelectByID(pid):
+  results = tryCatchSelect(sql.select_patient_by_id, (pid,), "patientSelectByID")
   return results
 
-# Select only the latest row of linear regression data for a known patient ID
-# Used for graphing/reading data without calling an update/insert
-def selectLatestRegressionByPID(pid=0):
-  sql_string = """
-    SELECT lr.study_id, lr.samples_hash, lr.date_updated, lr.sample_count, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err 
-    FROM linear_regression lr
-    WHERE lr.study_id = ? 
-    ORDER BY lr.date_updated DESC
-    LIMIT 1;
-  """
-  if pid == 0:
-    sql_string = sql_string.replace("WHERE lr.study_id = ? ", " ")
-    sql_string = sql_string.replace("LIMIT 1", " ")
-    results = tryCatchSelectOne(sql_string, (), "selectLatestRegressionByPID")
-  else:
-    results = tryCatchSelectOne(sql_string, (pid, ), "selectLatestRegressionByPID")
+def patientInsertNew(row_number, study_id, date_of_birth, sex=1, file="Manual entry", process_date="2022-09-04"):
+  try:
+    dbCurs.execute(sql.insert_patient, (study_id, date_of_birth, sex, file, process_date))
+  except Error as e:
+    logging.error("dbmethods.py - patientInsertNew ({}) in {} on row {}: {}".format(study_id, file, row_number, e))
+
+def sampleSelectByIDFull(sid):
+  results = tryCatchSelect(sql.select_sample_by_full_id, ("%"+sid+"%",), "sampleSelectByIDFull")
   return results
 
-# Select only the hash and date updated of linear regression for all records pertaining to a patient id
-# Used to enable selection of specific data - in combination with selectRegressionByPIDHash
-def selectRegressionHashPID(pid=0):
-  sql_string = """
-    SELECT lr.samples_hash, lr.date_updated 
-    FROM linear_regression lr
-    WHERE lr.study_id = ? 
-    ORDER BY lr.date_updated DESC
-  """
-  results = tryCatchSelectOne(sql_string, (pid, ), "selectRegressionHashPID")
+def sampleInsertNew(row_number, sample_id, patient_id, receipt_date, sample_type, location, category, file="Manual entry", process_date="2022-09-04"):
+  try:
+    dbCurs.execute(sql.insert_sample, (sample_id, patient_id, receipt_date, sample_type, location, category, file, process_date))
+  except Error as e:
+    logging.error("dbmethods.py - sampleInsertNew ({}) in {} on row {}: {}".format(sample_id, file, row_number, e))
+
+def samplesSelectByFile(file="Manual entry"):
+  results = tryCatchSelect(sql.select_samples_by_original_file, (file,), "samplesSelectByFile")
   return results
 
+def resultSelectRawBySampKey(sid):
+  results = tryCatchSelect(sql.select_results_by_samp_key, (sid,), "resultSelectRawBySampKey")
+  return results
 
-# Secondary entry point - should avoid running this as just a script. Compile the program
-# and gain access to this module via menu.py (or db_menus.py) instead.
-# Serious harm can come from playing about with the database in unstructured ways. KTHX
+def resultInsertNew(row_number, sample_id, analyte_id, analyte_value, file="Manual entry", process_date="2022-09-04"):
+  try:                                  
+    dbCurs.execute(sql.insert_result, (sample_id, analyte_id, analyte_value, file, process_date))
+  except Error as e:
+    logging.error("dbmethods.py - resultInsertNew ({}:{}) in {} on row {}: {}".format(sample_id, analyte_id, file, row_number, e))
+
+def analyteSelectByTest(test):
+  results = tryCatchSelect(sql.select_analyte_by_code, (test,), "analyteSelectByTest")
+  return results
+
 if __name__ == '__main__':
-    #alterTables()
-    db_menus.dbMenu()
+  logging.info("Session started [dbmethods entry]")
+  menu.db_main()
