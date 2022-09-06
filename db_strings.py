@@ -90,8 +90,7 @@ select_patients_by_original_file = """SELECT study_id, date_of_birth, sex, origi
 # Select patient IDs but from the sample table, when they have more than n samples attributed to their study_id
 # need this for reducing number of records to process with linear regression
 select_patient_id_if_multiple_samples = """SELECT study_id FROM sample GROUP BY study_id HAVING count(*) > ?;"""
-
-
+ 
 # SAMPLE strings
 # -- Try to JOIN with patient table where possible to maintain patient-sample association
 # Default select full record on one sample by the sample ID from TelePath

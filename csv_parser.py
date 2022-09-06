@@ -2,10 +2,10 @@ import os.path
 #from datetime import date
 import time
 import csv
-import new_dbmethods as db
-import new_menus as menu
+import db_methods as db
+import menus as menu
 import logging
-logging.basicConfig(filename='study.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
 
 # Prompt the user for a file, or multiple files separated by comma
 # Check the file exists then process it, skip if unsuccessfull
@@ -199,4 +199,3 @@ def debugTime(process_title):
 if __name__ == '__main__':
   logging.info("Session started [csvparser entry]")
   menu.csv_main()
-  logging.info("Session ended\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")

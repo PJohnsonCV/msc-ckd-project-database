@@ -1,5 +1,5 @@
-import new_parse as csv
-import new_dbmethods as db
+import csv_parser as csv
+import db_methods as db
 import os
 import logging
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)

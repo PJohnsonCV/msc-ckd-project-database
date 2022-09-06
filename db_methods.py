@@ -1,7 +1,7 @@
 import sqlite3
 from sqlite3 import Error
-import new_sql as sql
-import new_menus as menu
+import db_strings as sql
+import menus as menu
 import logging
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
 
@@ -38,10 +38,10 @@ known_analytes = [
 def initialiseTables():
   try: 
     dbCurs.executescript(sql.define_tables)
-    logging.info("dbmethods.py - Successfully created tables.")
+    logging.info("db_methods.py:initialiseTables Successfully created tables.")
     return True
   except Error as e:
-    logging.error("dbmethods.py - ", e)
+    logging.error("db_methods.py:initialiseTables ", e)
     return False
 
 # Populates the analytes table with the defined list, known_analytes
@@ -51,7 +51,7 @@ def initialiseAnalytes():
   try:
     dbCurs.executemany(sql.insert_analytes, known_analytes)
     dbConn.commit() 
-    logging.info("dbmethods.py - Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
+    logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
     logging.error("dbmethods.py - ", e)
@@ -63,11 +63,11 @@ def initialiseAnalytes():
 def resetDatabase():
   try:
     dbCurs.executescript(sql.bobby_tables)
-    logging.info("dbmethods.py - Tables deleted")
+    logging.info("db_methods.py - Tables deleted")
     if initialiseTables():
       initialiseAnalytes()
   except Error as e:
-    logging.error("Deleting tables, ", e)
+    logging.error("db_methods.py:resetDatabase ", e)
 
 # Pass in the required select from db_statements, and appropriate param values
 # Not sure why I named this ONE, returns ALL rows from the select, or False if
@@ -80,7 +80,7 @@ def tryCatchSelect(sql_string, values, method_name):
     return rows
   except Error as e:
     logging.debug("tryCatchSelect sql_string [{}], values [{}], method_name [{}]".format(sql_string, values, method_name))
-    logging.error("tryCatchSelect from {}, error: ".format(method_name, e))
+    logging.error("tryCatchSelect:{}, error: ".format(method_name, e))
     return False
 
 # Helper functions help keep things tidy!
@@ -92,11 +92,15 @@ def patientSelectByID(pid):
   results = tryCatchSelect(sql.select_patient_by_id, (pid,), "patientSelectByID")
   return results
 
+# Groups study_id having a count greater than n in the sample table, excludes <= n obviously, so good to prevent processing 0 / 1 / 2 samples for linear regression
+def patientsSelectSampleCountGreaterThan(count_gt):
+  results = tryCatchSelect(sql.select_patient_id_if_multiple_samples, (count_gt,), "patientsSelectSampleCountGreaterThan")
+
 def patientInsertNew(row_number, study_id, date_of_birth, sex=1, file="Manual entry", process_date="2022-09-04"):
   try:
     dbCurs.execute(sql.insert_patient, (study_id, date_of_birth, sex, file, process_date))
   except Error as e:
-    logging.error("dbmethods.py - patientInsertNew ({}) in {} on row {}: {}".format(study_id, file, row_number, e))
+    logging.error("db_methods.py:patientInsertNew csv row {}: {}".format(row_number, e))
 
 def sampleSelectByIDFull(sid):
   results = tryCatchSelect(sql.select_sample_by_full_id, ("%"+sid+"%",), "sampleSelectByIDFull")
@@ -106,7 +110,7 @@ def sampleInsertNew(row_number, sample_id, patient_id, receipt_date, sample_type
   try:
     dbCurs.execute(sql.insert_sample, (sample_id, patient_id, receipt_date, sample_type, location, category, file, process_date))
   except Error as e:
-    logging.error("dbmethods.py - sampleInsertNew ({}) in {} on row {}: {}".format(sample_id, file, row_number, e))
+    logging.error("db_methods.py:sampleInsertNew csv row {}: {}".format(row_number, e))
 
 def samplesSelectByFile(file="Manual entry"):
   results = tryCatchSelect(sql.select_samples_by_original_file, (file,), "samplesSelectByFile")
@@ -120,7 +124,7 @@ def resultInsertNew(row_number, sample_id, analyte_id, analyte_value, file="Manu
   try:                                  
     dbCurs.execute(sql.insert_result, (sample_id, analyte_id, analyte_value, file, process_date))
   except Error as e:
-    logging.error("dbmethods.py - resultInsertNew ({}:{}) in {} on row {}: {}".format(sample_id, analyte_id, file, row_number, e))
+    logging.error("db_methods.py:resultInsertNew csv row {}: {}".format(row_number, e))
 
 def analyteSelectByTest(test):
   results = tryCatchSelect(sql.select_analyte_by_code, (test,), "analyteSelectByTest")
