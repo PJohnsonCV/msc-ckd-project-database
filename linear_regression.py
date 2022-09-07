@@ -3,12 +3,24 @@ from scipy import stats
 import db_methods
 import datetime as dt
 import hashlib
+from datetime import date
 
 slope = 0
 intercept = 0
 
 def correlateX(x):
   return slope * x + intercept
+
+def regressGFRvsOrdinalDate():
+  patient_ids = db_methods.patientsSelectSampleCountGreaterThan(2,1)
+  for patient in patient_ids:
+    samples = db_methods.sampleSelectByIDFull(patient)
+    for sample in samples:
+      f_date = date(doby, dobm, dobd)
+      l_date = date(recy, recm, recd)
+      ordinal_age = (l_date - f_date) + 1
+
+
 
 def updatePatientLinearRegression(pid=0):
   s = []

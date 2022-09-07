@@ -1,5 +1,6 @@
 import os.path
-#from datetime import date
+from datetime import date
+from re import A
 import time
 import csv
 import db_methods as db
@@ -188,6 +189,39 @@ def getAnalyteIDs(tests):
     analytes[test] = params[0][0]
   return analytes
 
+# Calculate the number of days between a sample receipt and the patient date of birth to produce an ordinal number relevant to the patient
+# more relevant to personal care than ordinal date function that goes back to 0001.
+def patientAgeOrdinal(dob, receipt, years=False):
+  origin = date(int(dob[0:4]), int(dob[5:7]), int(dob[8:10]))
+  current = date(int(receipt[0:4]), int(receipt[5:7]), int(receipt[8:10]))
+  age = (current-origin).days +1
+  if years==True:
+    age = int(receipt[0:4]) - int(dob[0:4])
+    if int(receipt[5:7])<int(dob[5:7]) or (int(receipt[5:7])==int(dob[5:7]) and int(receipt[8:10])<int(dob[8:10])):
+      age-=1
+  return age 
+  
+def calculateMDRD(sample_id, cre_result, sex, age):
+  #egf = 175 x cre^-1.154 x age^-0.203xFxEth
+  sexx = 1
+  if sex == "F":
+    sexx = 0.742
+  return round(175 * (cre_result/88.4)**-1.154 * age**-0.203 * sexx)
+
+def calculateCKDEPI(sample_id, cre_result, sex, age):
+  #egfr = 141 x min(Std Cre / K, 1)^a x max(Scre / K, 1)^-1.209 x 0.993^age x F x Eth
+  if sex == 'F':
+    Kval = 61.9
+    alpha = -0.329
+    sexx = 1.018
+  elif sex == 'M':
+    Kval = 79.6
+    alpha = -0.411
+    sexx = 1
+  else:
+    logging.error("Unable to calculate eGFR for {}, patient sex '{}'".format(sample_id, sex))
+  return round(141 * (min((cre_result / Kval),1)**alpha) * (max((cre_result / Kval), 1)**-1.209) * (0.993**age) * sexx)
+
 # Reused code to print the time at start and end of processes
 # Returns the time in the event of wanting to find a delta or do something fancy
 def debugTime(process_title):
@@ -197,5 +231,8 @@ def debugTime(process_title):
   return local_time
 
 if __name__ == '__main__':
-  logging.info("Session started [csvparser entry]")
-  menu.csv_main()
+  #logging.info("Session started [csvparser entry]")
+  #menu.csv_main()
+  print(patientAgeOrdinal("1985-08-23","2022-09-24"))
+  #print(calculateCKDEPI(1, 62, "M", 59))
+  #print(calculateMDRD(1, 62, "M", 59))

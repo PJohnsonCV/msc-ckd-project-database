@@ -29,7 +29,9 @@ known_analytes = [
   ("Hb", "Haemoglobin", "g/L"),
   ("HCT", "Haematocrit", "L/L"),
   ("MCH", "Mean cell haemoglobin", "pg"),
-  ("PHO", "Phosphate", "mmol/L")
+  ("PHO", "Phosphate", "mmol/L"),
+  ("MDRD", "eGFR by MDRD self calc", "mL/min/1.73m^2"),
+  ("CKDEPI", "eGFR by CKD-EPI self calc", "mL/min/1.73m^2")
 ]
 
 # Commits the CREATE TABLE script for all tables in one go
@@ -68,7 +70,6 @@ def resetDatabase():
       initialiseAnalytes()
   except Error as e:
     logging.error("db_methods.py:resetDatabase ", e)
-
 # Pass in the required select from db_statements, and appropriate param values
 # Not sure why I named this ONE, returns ALL rows from the select, or False if
 # an execution error. 
@@ -93,8 +94,13 @@ def patientSelectByID(pid):
   return results
 
 # Groups study_id having a count greater than n in the sample table, excludes <= n obviously, so good to prevent processing 0 / 1 / 2 samples for linear regression
-def patientsSelectSampleCountGreaterThan(count_gt):
-  results = tryCatchSelect(sql.select_patient_id_if_multiple_samples, (count_gt,), "patientsSelectSampleCountGreaterThan")
+def patientsSelectSampleCountGreaterThan(count_gt,sample_type=2):
+  sql_str = sql.select_patient_id_if_multiple_samples
+  if sample_type == 0:
+    sql_str = sql.select_patient_id_if_multiple_samples_urine
+  elif sample_type == 1:
+    sql_str = sql.select_patient_id_if_multiple_samples_serum
+  results = tryCatchSelect(sql_str, (count_gt,), "patientsSelectSampleCountGreaterThan")
 
 def patientInsertNew(row_number, study_id, date_of_birth, sex=1, file="Manual entry", process_date="2022-09-04"):
   try:

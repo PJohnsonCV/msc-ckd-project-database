@@ -24,6 +24,7 @@ define_tables = """
     samp_id_full TEXT UNIQUE,
     study_id INTEGER,
     receipt_date TEXT NOT NULL,
+    patient_ordinal_age INTEGER,
     type INTEGER DEFAULT 1,
     location TEXT NOT NULL,
     category TEXT NOT NULL,
@@ -48,19 +49,19 @@ define_tables = """
     date_added TEXT NOT NULL
   );
   
-  CREATE TABLE IF NOT EXISTS linear_regression_ordinaldate (
+  CREATE TABLE IF NOT EXISTS linear_regression (
     study_id INTEGER,
-    samples_hash TEXT NOT NULL,
-    date_updated TEXT NOT NULL,
+    regression_on TEXT NOT NULL,
+    samples_included TEXT NOT NULL,
     sample_count INTEGER,
+    date_processed TEXT NOT NULL,
     slope REAL,
     intercept REAL,
     r REAL,
     p REAL,
     std_err REAL,
-    PRIMARY KEY (study_id, samples_hash),
-    FOREIGN KEY (study_id) REFERENCES patient (study_id) ON DELETE CASCADE ON UPDATE NO ACTION
-  )
+    intercept_stderr REAL
+  );
 """
 
 # Five tables, five insert statements
@@ -81,6 +82,14 @@ bobby_tables = """
   DROP TABLE IF EXISTS linear_regression_ordinaldate;
 """
 
+alter_tables = """
+  DROP TABLE IF EXISTS linear_regression_ordinaldate;
+  
+  ALTER TABLE sample
+  ADD COLUMN patient_ordinal_age;
+
+  ALTER TABLE 
+"""
 
 # PATIENT strings
 # Default select full record on one patient by their study_id
@@ -90,6 +99,8 @@ select_patients_by_original_file = """SELECT study_id, date_of_birth, sex, origi
 # Select patient IDs but from the sample table, when they have more than n samples attributed to their study_id
 # need this for reducing number of records to process with linear regression
 select_patient_id_if_multiple_samples = """SELECT study_id FROM sample GROUP BY study_id HAVING count(*) > ?;"""
+select_patient_id_if_multiple_samples_urine = """SELECT study_id FROM sample WHERE s.type=0 GROUP BY study_id HAVING count(*) > ?;"""
+select_patient_id_if_multiple_samples_serum = """SELECT study_id FROM sample WHERE s.type=1 GROUP BY study_id HAVING count(*) > ?;"""
  
 # SAMPLE strings
 # -- Try to JOIN with patient table where possible to maintain patient-sample association
