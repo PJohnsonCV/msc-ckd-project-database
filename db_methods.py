@@ -56,7 +56,7 @@ def initialiseAnalytes():
     logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
-    logging.error("dbmethods.py - ", e)
+    logging.error("dbmethods.py:initialiseAnalytes ", e)
 
 # Initialisation / reset of database
 # Deletes tables if the exist, then creates them 
@@ -70,6 +70,32 @@ def resetDatabase():
       initialiseAnalytes()
   except Error as e:
     logging.error("db_methods.py:resetDatabase ", e)
+
+def alterDatabase():
+  if(sql.alter_tables != ""):
+    print("Found the following SQL string:\n{}".format(sql.alter_tables))
+    confirm = input("If you want to execute the SQL statement(s) above, type YES: ")
+    if confirm.upper() == "YES":
+      try:
+        dbCurs.executescript(sql.alter_tables)
+        logging.info("db_methods.py:alterDatabase - the following SQL was executed: {}".format(sql.alter_tables))
+        input("Tables altered. Press ENTER to continue.")
+      except Error as e:
+        logging.error("db_methods.py:alterDatabase ", e)
+    else:
+      input("Response not as expected, backing out of alter. Press ENTER to continue.")
+  else:
+    input("No valid SQL string found. Press ENTER to continue.")
+    logging.info("db_methods.py:alterDatabase no SQL string found to execute")
+
+def updateSampleAges(values):
+  try:
+    dbCurs.executemany(sql.update_samples_ordinal_ages, values)
+    dbConn.commit() 
+    logging.info("db_methods.py:updateSampleAges Updated {} of {} samples(s)".format(dbCurs.rowcount, len(known_analytes)))
+  except Error as e:
+    logging.error("dbmethods.py:updateSampleAges ", e)
+
 # Pass in the required select from db_statements, and appropriate param values
 # Not sure why I named this ONE, returns ALL rows from the select, or False if
 # an execution error. 
@@ -102,6 +128,10 @@ def patientsSelectSampleCountGreaterThan(count_gt,sample_type=2):
     sql_str = sql.select_patient_id_if_multiple_samples_serum
   results = tryCatchSelect(sql_str, (count_gt,), "patientsSelectSampleCountGreaterThan")
 
+def patientsampleSelectFromFilteredPIDs(count_gt):
+  results = tryCatchSelect(sql.select_patientsample_using_pids, (count_gt,), "patientssampleSelectFromFilteredPIDs")
+  return results
+
 def patientInsertNew(row_number, study_id, date_of_birth, sex=1, file="Manual entry", process_date="2022-09-04"):
   try:
     dbCurs.execute(sql.insert_patient, (study_id, date_of_birth, sex, file, process_date))
@@ -122,6 +152,10 @@ def samplesSelectByFile(file="Manual entry"):
   results = tryCatchSelect(sql.select_samples_by_original_file, (file,), "samplesSelectByFile")
   return results
 
+def resultsGroupedByAnalyte(code, count_gt):
+  results = tryCatchSelect(sql.select_grouped_results_by_analyte, (code, count_gt,), "samplesSelectByFile")
+  return results
+
 def resultSelectRawBySampKey(sid):
   results = tryCatchSelect(sql.select_results_by_samp_key, (sid,), "resultSelectRawBySampKey")
   return results
@@ -131,6 +165,14 @@ def resultInsertNew(row_number, sample_id, analyte_id, analyte_value, file="Manu
     dbCurs.execute(sql.insert_result, (sample_id, analyte_id, analyte_value, file, process_date))
   except Error as e:
     logging.error("db_methods.py:resultInsertNew csv row {}: {}".format(row_number, e))
+
+def resultsInsertBatch(values):
+  try:
+    dbCurs.executemany(sql.insert_result, values)
+    dbConn.commit() 
+    logging.info("db_methods.py:resultsInsertBatch Updated {} of {} results(s)".format(dbCurs.rowcount, len(values)))
+  except Error as e:
+    logging.error("dbmethods.py:resultsInsertBatch ", e)
 
 def analyteSelectByTest(test):
   results = tryCatchSelect(sql.select_analyte_by_code, (test,), "analyteSelectByTest")

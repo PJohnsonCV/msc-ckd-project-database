@@ -24,7 +24,8 @@ define_tables = """
     samp_id_full TEXT UNIQUE,
     study_id INTEGER,
     receipt_date TEXT NOT NULL,
-    patient_ordinal_age INTEGER,
+    patient_age_days INTEGER,
+    patient_age_years INTEGER,
     type INTEGER DEFAULT 1,
     location TEXT NOT NULL,
     category TEXT NOT NULL,
@@ -86,9 +87,10 @@ alter_tables = """
   DROP TABLE IF EXISTS linear_regression_ordinaldate;
   
   ALTER TABLE sample
-  ADD COLUMN patient_ordinal_age;
+  ADD patient_age_years INTEGER;
 
-  ALTER TABLE 
+  ALTER TABLE sample
+  ADD patient_age_days INTEGER;
 """
 
 # PATIENT strings
@@ -98,10 +100,12 @@ select_patient_by_id = """SELECT study_id, date_of_birth, sex, original_file, da
 select_patients_by_original_file = """SELECT study_id, date_of_birth, sex, original_file, date_added FROM patient WHERE original_file = ?;"""
 # Select patient IDs but from the sample table, when they have more than n samples attributed to their study_id
 # need this for reducing number of records to process with linear regression
-select_patient_id_if_multiple_samples = """SELECT study_id FROM sample GROUP BY study_id HAVING count(*) > ?;"""
-select_patient_id_if_multiple_samples_urine = """SELECT study_id FROM sample WHERE s.type=0 GROUP BY study_id HAVING count(*) > ?;"""
-select_patient_id_if_multiple_samples_serum = """SELECT study_id FROM sample WHERE s.type=1 GROUP BY study_id HAVING count(*) > ?;"""
- 
+select_patient_id_if_multiple_samples = """SELECT study_id FROM sample GROUP BY study_id HAVING count(*) > ?""" # DANGER no semicolon!
+select_patient_id_if_multiple_samples_urine = """SELECT study_id FROM sample WHERE s.type=0 GROUP BY study_id HAVING count(*) > ?""" # !!
+select_patient_id_if_multiple_samples_serum = """SELECT study_id FROM sample WHERE s.type=1 GROUP BY study_id HAVING count(*) > ?""" # !!
+select_patientsample_using_pids = "SELECT p.date_of_birth, s.receipt_date, s.samp_key FROM sample s JOIN patient p ON (s.study_id = p.study_id) WHERE s.study_id IN ("+select_patient_id_if_multiple_samples+");"
+update_samples_ordinal_ages = "UPDATE sample SET patient_age_days=?, patient_age_years=? WHERE samp_key=?;"
+
 # SAMPLE strings
 # -- Try to JOIN with patient table where possible to maintain patient-sample association
 # Default select full record on one sample by the sample ID from TelePath
@@ -111,6 +115,7 @@ select_samples_by_original_file = """SELECT s.samp_key, s.samp_id_full, s.receip
 
 # RESULT strings
 select_results_by_samp_key = """SELECT id, samp_key, analyte_id, value, comment, original_file, date_added FROM result WHERE samp_key = ?;"""
+select_grouped_results_by_analyte = """SELECT r.id, r.samp_key, r.analyte_id, r.value, s.patient_age_years, s.patient_age_days, p.sex, s.study_id FROM result r JOIN sample s ON (s.samp_key=r.samp_key) JOIN patient p ON (p.study_id=s.study_id) WHERE r.analyte_id IN (SELECT id from analyte WHERE code = ?) AND s.study_id IN (SELECT study_id FROM sample GROUP BY study_id HAVING count(*) > ?) ORDER BY s.study_id;"""
 select_results_expanded_by_samp_key = """SELECT id, samp_key, analyte_id, !!!!!!!!!!, value, comment, original_file, date_added FROM result WHERE samp_key = ?;"""
 
 # ANALYTE string (should only need the one)
