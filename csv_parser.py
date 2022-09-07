@@ -52,7 +52,7 @@ def processFile(file, action=0):
     mid_time = debugTime("processFile full step 2/3 [{}]".format(file))
     processSamplesSafetyOff(file)
     mid_time = debugTime("processFile full step 3/3 [{}]".format(file))
-    processResultsSafetyOff(file)
+    processResultsSafetyOff2(file)
     end_time = debugTime("processFile complete".format(file))
   elif action == 1:
     processPatientIDs(file)
@@ -142,21 +142,27 @@ def processResultsSafetyOff(file):
   proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
   logging.info("processResultsSafetyOff({}) END proc_time={}, rows in csv={}, rows inserted={}, rows not inserted={}\n-------------------------------------------------------------------------------------------".format(file, proc_time, counters["row"], counters["success"], counters["fail"]))
 
-#      # If the sample ID is found checking for and add the results
-#      else:
-#        sid = samp_query[0][0]
-#        res_query = db.resultSelectRawBySampKey(sid)
-#        #logging.debug("row {} | {} | {}".format(row_counter, sid, res_query))
-#        if res_query == False or len(res_query) == 0:
-#          res_counter += 1
-#          for analyte in analytes:
-#            if row[analyte].strip() != "":
-#              res_counter += 1
-#              db.resultInsertNew(row_counter, sid, analytes[analyte], row[analyte], file, proc_time)                      
-#        else:
-#          logging.info("csvparser.py - processSampleResult - sid ({}) not obtained from line {}".format(row["Lab No/Spec No"], row_counter))
-#  db.commit()
-#  logging.info("csvparser.py - processSampleResult Read {} rows - {} new samples, {} new sample results".format(row_counter, samp_counter, res_counter))
+def processResultsSafetyOff2(file):
+  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
+  logging.info("processResultsSafetyOff({}) BEGIN proc_time={}\n-------------------------------------------------------------------------------------------".format(file, proc_time))    
+  counters = {"row":0, "success":0, "fail":0}
+  sample_ids = db.samplesSelectByFile(file)
+  analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO","MDRD","CKDEPI"])
+  values = []
+  with open(file, 'r') as csv_file:  
+    csv_dict = csv.DictReader(csv_file)
+    col_names = csv_dict.fieldnames
+    for row in csv_dict:
+      counters["row"] += 1
+      sample_info = [sid for sid in sample_ids if sid[1] == row["Lab No/Spec No"]]
+      for analyte in analytes:
+        if row[analyte].strip() != "": 
+            values.append((counters["row"], sample_info[0][0], analytes[analyte], row[analyte], file, proc_time))
+            counters["success"] += 1
+    logging.info("End of FOR")
+    db.resultsInsertBatch(values)
+  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
+  logging.info("processResultsSafetyOff2({}) END proc_time={}, rows in csv={}, rows inserted={}".format(file, proc_time, counters["row"], counters["success"]))
 
 # TelePath outputs dates in dd.mm.yy or dd-mm-yy format depending on how close the year 
 # is to being 100 years, i.e. an overlap "-21" = 1921 but ".21" = 2021 
@@ -188,8 +194,6 @@ def getAnalyteIDs(tests):
     params = db.analyteSelectByTest(test)
     analytes[test] = params[0][0]
   return analytes
-
-
 
 # Reused code to print the time at start and end of processes
 # Returns the time in the event of wanting to find a delta or do something fancy

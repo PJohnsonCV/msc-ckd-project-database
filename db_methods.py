@@ -52,7 +52,7 @@ def initialiseTables():
 def initialiseAnalytes():
   try:
     dbCurs.executemany(sql.insert_analytes, known_analytes)
-    dbConn.commit() 
+    commit() 
     logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
@@ -91,7 +91,7 @@ def alterDatabase():
 def updateSampleAges(values):
   try:
     dbCurs.executemany(sql.update_samples_ordinal_ages, values)
-    dbConn.commit() 
+    commit() 
     logging.info("db_methods.py:updateSampleAges Updated {} of {} samples(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     logging.error("dbmethods.py:updateSampleAges ", e)
@@ -169,7 +169,7 @@ def resultInsertNew(row_number, sample_id, analyte_id, analyte_value, file="Manu
 def resultsInsertBatch(values):
   try:
     dbCurs.executemany(sql.insert_result, values)
-    dbConn.commit() 
+    commit() 
     logging.info("db_methods.py:resultsInsertBatch Updated {} of {} results(s)".format(dbCurs.rowcount, len(values)))
   except Error as e:
     logging.error("dbmethods.py:resultsInsertBatch ", e)

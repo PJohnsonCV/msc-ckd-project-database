@@ -20,9 +20,13 @@ def patientAgeOrdinal(dob, receipt, years=False):
 # Calculation is: egfr = 175 x cre^-1.154 x age^-0.203 x Sex x Ethnicity
 def calculateMDRD(sample_id, cre_result, sex, age):
   cre_result = int(cre_result)
-  sexx = 1
-  if sex == "F":
+  if sex == "F" or sex == "P": 
     sexx = 0.742
+  elif sex == 'M':
+    sexx = 1
+  else:
+    logging.error("Unable to calculate MDRD eGFR for {}, patient sex '{}'".format(sample_id, sex))
+    return
   return round(175 * (cre_result/88.4)**-1.154 * age**-0.203 * sexx)
 
 # CKD-EPI calculation using creatinine results in umol/L (UK standard), excluding the ethnicity modifier (data unavailable)
@@ -31,7 +35,7 @@ def calculateMDRD(sample_id, cre_result, sex, age):
 def calculateCKDEPI(sample_id, cre_result, sex, age):
   #egfr = 141 x min(Std Cre / K, 1)^a x max(Scre / K, 1)^-1.209 x 0.993^age x F x Eth
   cre_result = int(cre_result)
-  if sex == 'F':
+  if sex == 'F' or sex =='P':
     Kval = 61.9
     alpha = -0.329
     sexx = 1.018
@@ -40,7 +44,7 @@ def calculateCKDEPI(sample_id, cre_result, sex, age):
     alpha = -0.411
     sexx = 1
   else:
-    logging.error("Unable to calculate eGFR for {}, patient sex '{}'".format(sample_id, sex))
+    logging.error("Unable to calculate CKD-EPI eGFR for {}, patient sex '{}'".format(sample_id, sex))
     return
   return round(141 * (min((cre_result / Kval),1)**alpha) * (max((cre_result / Kval), 1)**-1.209) * (0.993**age) * sexx)
 
