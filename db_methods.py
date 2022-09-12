@@ -56,7 +56,7 @@ def initialiseAnalytes():
     logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
     #dbConn.close()
-    logging.error("dbmethods.py:initialiseAnalytes ", e)
+    logging.error("dbmethods.py:initialiseAnalytes {}".format(e))
 
 # Initialisation / reset of database
 # Deletes tables if the exist, then creates them 
@@ -69,7 +69,7 @@ def resetDatabase():
     if initialiseTables():
       initialiseAnalytes()
   except Error as e:
-    logging.error("db_methods.py:resetDatabase ", e)
+    logging.error("db_methods.py:resetDatabase {}".format(e))
 
 def alterDatabase():
   if(sql.alter_tables != ""):
@@ -81,7 +81,7 @@ def alterDatabase():
         logging.info("db_methods.py:alterDatabase - the following SQL was executed: {}".format(sql.alter_tables))
         input("Tables altered. Press ENTER to continue.")
       except Error as e:
-        logging.error("db_methods.py:alterDatabase ", e)
+        logging.error("db_methods.py:alterDatabase {}".format(e))
     else:
       input("Response not as expected, backing out of alter. Press ENTER to continue.")
   else:
@@ -94,7 +94,7 @@ def updateSampleAges(values):
     commit() 
     logging.info("db_methods.py:updateSampleAges Updated {} of {} samples(s)".format(dbCurs.rowcount, len(known_analytes)))
   except Error as e:
-    logging.error("dbmethods.py:updateSampleAges ", e)
+    logging.error("dbmethods.py:updateSampleAges {}".format(e))
 
 # Pass in the required select from db_statements, and appropriate param values
 # Not sure why I named this ONE, returns ALL rows from the select, or False if
@@ -107,7 +107,7 @@ def tryCatchSelect(sql_string, values, method_name):
     return rows
   except Error as e:
     logging.debug("tryCatchSelect sql_string [{}], values [{}], method_name [{}]".format(sql_string, values, method_name))
-    logging.error("tryCatchSelect:{}, error: ".format(method_name, e))
+    logging.error("tryCatchSelect:{}, error: {}".format(method_name, e))
     return False
 
 # Helper functions help keep things tidy!
@@ -127,16 +127,26 @@ def patientsSelectSampleCountGreaterThan(count_gt,sample_type=2):
   elif sample_type == 1:
     sql_str = sql.select_patient_id_if_multiple_samples_serum
   results = tryCatchSelect(sql_str, (count_gt,), "patientsSelectSampleCountGreaterThan")
+  return results
 
 def patientsampleSelectFromFilteredPIDs(count_gt):
   results = tryCatchSelect(sql.select_patientsample_using_pids, (count_gt,), "patientssampleSelectFromFilteredPIDs")
   return results
 
-def patientInsertNew(row_number, study_id, date_of_birth, sex=1, file="Manual entry", process_date="2022-09-04"):
+def patientInsertSingle(row_number, study_id, date_of_birth, sex=1, file="Manual entry", process_date="2022-09-04"):
   try:
     dbCurs.execute(sql.insert_patient, (study_id, date_of_birth, sex, file, process_date))
   except Error as e:
-    logging.error("db_methods.py:patientInsertNew csv row {}: {}".format(row_number, e))
+    logging.error("db_methods.py:patientInsertSingle csv row {}: {}".format(row_number, e))
+
+def patientInsertMany(values):
+  try:
+    logging.debug("patientInsertMany try")
+    dbCurs.executemany(sql.insert_patient, values)
+    commit()
+    logging.debug("patientInsertMany committed")
+  except Error as e:
+    logging.error("db_methods.py:patientInsertMany: {}, {}".format(e, values))
 
 def sampleSelectByIDFull(sid):
   results = tryCatchSelect(sql.select_sample_by_full_id, ("%"+sid+"%",), "sampleSelectByIDFull")
@@ -148,6 +158,15 @@ def sampleInsertNew(row_number, sample_id, patient_id, receipt_date, sample_type
   except Error as e:
     logging.error("db_methods.py:sampleInsertNew csv row {}: {}".format(row_number, e))
 
+def sampleInsertMany(values):
+  try:
+    logging.debug("sampleInsertMany try")
+    dbCurs.executemany(sql.insert_sample, values)
+    commit()
+    logging.debug("sampleInsertMany committed")
+  except Error as e:
+    logging.error("db_methods.py:sampleInsertMany: {}".format(e))
+
 def samplesSelectByFile(file="Manual entry"):
   results = tryCatchSelect(sql.select_samples_by_original_file, (file,), "samplesSelectByFile")
   return results
@@ -158,6 +177,10 @@ def resultsGroupedByAnalyte(code, count_gt):
 
 def resultSelectRawBySampKey(sid):
   results = tryCatchSelect(sql.select_results_by_samp_key, (sid,), "resultSelectRawBySampKey")
+  return results
+
+def resultsSingleAnalyteByPatient(pid, analyte):
+  results = tryCatchSelect(sql.select_results_by_analyte_patient, (pid, analyte,), "resultsSingleAnalyteByPatient")
   return results
 
 def resultInsertNew(row_number, sample_id, analyte_id, analyte_value, file="Manual entry", process_date="2022-09-04"):
@@ -177,6 +200,14 @@ def resultsInsertBatch(values):
 def analyteSelectByTest(test):
   results = tryCatchSelect(sql.select_analyte_by_code, (test,), "analyteSelectByTest")
   return results
+
+def regressionInsertBatch(values):
+  try:
+    dbCurs.executemany(sql.insert_linearregression, values)
+    commit() 
+    logging.info("db_methods.py:regressionInsertBatch Updated {} of {} results(s)".format(dbCurs.rowcount, len(values)))
+  except Error as e:
+    logging.error("dbmethods.py:regressionInsertBatch ", e)
 
 if __name__ == '__main__':
   logging.info("Session started [dbmethods entry]")

@@ -19,14 +19,18 @@ def patientAgeOrdinal(dob, receipt, years=False):
 # Excluding the ethnicity modifier because data isn't available from TelePath. 
 # Calculation is: egfr = 175 x cre^-1.154 x age^-0.203 x Sex x Ethnicity
 def calculateMDRD(sample_id, cre_result, sex, age):
-  cre_result = int(cre_result)
+  if(cre_result.strip() != "NA"):
+    cre_result = int(cre_result)
+  else:
+    logging.error("Unable to calculate MDRD eGFR    for {}, creatinine '{}'".format(sample_id, cre_result))
+    return False
   if sex == "F" or sex == "P": 
     sexx = 0.742
   elif sex == 'M':
     sexx = 1
   else:
-    logging.error("Unable to calculate MDRD eGFR for {}, patient sex '{}'".format(sample_id, sex))
-    return
+    logging.error("Unable to calculate MDRD eGFR    for {}, patient sex '{}'".format(sample_id, sex))
+    return False
   return round(175 * (cre_result/88.4)**-1.154 * age**-0.203 * sexx)
 
 # CKD-EPI calculation using creatinine results in umol/L (UK standard), excluding the ethnicity modifier (data unavailable)
@@ -34,7 +38,11 @@ def calculateMDRD(sample_id, cre_result, sex, age):
 # Rounding because telepath does, don't think there's clinical relevance to decimal values
 def calculateCKDEPI(sample_id, cre_result, sex, age):
   #egfr = 141 x min(Std Cre / K, 1)^a x max(Scre / K, 1)^-1.209 x 0.993^age x F x Eth
-  cre_result = int(cre_result)
+  if(cre_result.strip() != "NA"):
+    cre_result = int(cre_result)
+  else:
+    logging.error("Unable to calculate CKD-EPI eGFR for {}, creatinine '{}'".format(sample_id, cre_result))
+    return False
   if sex == 'F' or sex =='P':
     Kval = 61.9
     alpha = -0.329
@@ -45,7 +53,7 @@ def calculateCKDEPI(sample_id, cre_result, sex, age):
     sexx = 1
   else:
     logging.error("Unable to calculate CKD-EPI eGFR for {}, patient sex '{}'".format(sample_id, sex))
-    return
+    return False
   return round(141 * (min((cre_result / Kval),1)**alpha) * (max((cre_result / Kval), 1)**-1.209) * (0.993**age) * sexx)
 
 # Already imported four years of data, not going to delete it all to rerun a csv import. Modifying tables with SQL and run this

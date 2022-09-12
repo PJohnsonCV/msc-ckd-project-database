@@ -1,39 +1,46 @@
+# CSV Parser
+# Data exported from laboratory information system will be in CSV format with a specific layout with one sample per row
+# - column headers: Date Rec'd, Time Rec'd, Hospital No., Lab No/Spec No, Sex, DOB/Age, LOC, MSG, [tests]
+# Process involves asking for file path/name, verifying file exists, process patient demographics, process sample details, process results
+# Data MUST be processed in patient>sample>result order, as result is dependent on sample id, and sample is dependent on patient id
+# Patient and sample details are straight forward, manipulation of dates to fix weird formatting issues, otherwise straight in (sample has patient age calculated from dob)
+# Result processing includes some calculation of eGFR results as the gfr data in files could be MDRD or CKD-EPI depending on the date received, and this study is comparing the two calculations anyway
+# Each processing loop builds an array of values to insert then performs an executemany - this is faster than inserting one at a time
+from datetime import datetime
 import os.path
-from datetime import date
-from re import A
-import time
 import csv
 import db_methods as db
 import menus as menu
+import data_manip as manip
 import logging
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
 
 # Prompt the user for a file, or multiple files separated by comma
 # Check the file exists then process it, skip if unsuccessfull
 def selectFile(action=0):
-  print("Enter a file path and file name (including extension). Multiple files can be listed using a comma. Type QUIT to exit.")
+  print("Please enter a path and filename, e.g. data/my_data.csv\nMultiple files can be processed sequentially. Use a comma to create a list, e.g. data/file1.csv, data/file2.csv\nType QUIT to go back to the menu.")
   file_path = input("File(s): ")
   if file_path.upper() == "QUIT":
     return False
   else:
-    # Multiple files
-    if file_path.find(",") > -1:
+    if file_path.find(",") > -1:        #Process multiple
       for file in file_path.split(","):
-        if fileValid(file):
-          try:
-            processFile(file, action)
-          except:
-            logging.error("selectFile did not complete try processFile({}, {}) ".format(file, action))
-        else:
-          logging.error("selectFile file did not pass validation ({})".format(file))
-    # Single file
+        tryProcess(file, action)
     else:
-      if fileValid(file_path):
-        processFile(file_path, action)
-      else:
-        logging.error("selectFile file did not pass validation ({})".format(file))
+      tryProcess(file_path, action)     #Process single
   input("Any valid work has now concluded. Press ENTER to continue.")
   menu.csv_main()
+
+# Tidier refactor :)
+def tryProcess(file, action):
+  file = file.strip() # In case of spaces between comma separation
+  if fileValid(file):
+    #try:
+    processFile(file, action)
+    #except:
+    #  logging.error("selectFile did not complete try processFile({}, {}) ".format(file, action))
+  else:
+    logging.error("selectFile file did not pass validation ({})".format(file))
 
 # File must exist and have a .csv extension. 
 # Not the most robust, but enough for personal use
@@ -43,126 +50,141 @@ def fileValid(file_path):
   return False
 
 # Requires a file path to perform a requested action on
-# Default action=0, processess all data in the file in one go
-# Specific actions = 1: just process patient IDs, 2: just process sample results
+# Default action=0, processess all data in the file (multiple pass)
+# Specific actions = 1: just process patient IDs, 2: just process samples, 3: just process results, 4: samples and results
 def processFile(file, action=0):
+  logging.info("processFile action={}, file={}".format(action, file))
   if action == 0:
-    start_time = debugTime("processFile full step 1/3 [{}]".format(file))
+    logging.debug("csv_parser:processFile action 0")
+    start_time = debugTime("processFile [{}] 1/3 - patientIDs".format(file))
     processPatientIDs(file)
-    mid_time = debugTime("processFile full step 2/3 [{}]".format(file))
-    processSamplesSafetyOff(file)
-    mid_time = debugTime("processFile full step 3/3 [{}]".format(file))
-    processResultsSafetyOff2(file)
-    end_time = debugTime("processFile complete".format(file))
+    step2_time = debugTime("processFile [{}] 2/3 - samples".format(file))
+    print("Last step: {}".format(str(step2_time - start_time)))
+    processSamples(file)
+    step3_time = debugTime("processFile [{}] 3/3 - results".format(file))
+    print("Last step: {}".format(str(step3_time - step2_time)))
+    processResults(file)
   elif action == 1:
+    start_time = debugTime("processFile [{}] 1/1 - patientIDs".format(file))
     processPatientIDs(file)
-  #elif action == 2:
-    #processSample(file)
+  elif action == 2:
+    start_time = debugTime("processFile [{}] 1/1 - samples".format(file))
+    processSamples(file)
+  elif action == 3:
+    start_time = debugTime("processFile [{}] 1/1 - results".format(file))
+    processResults(file)
+  elif action == 4:
+    start_time = debugTime("processFile [{}] 1/2 - samples".format(file))
+    processSamples(file)
+    step2_time = debugTime("processFile [{}] 2/2 - results".format(file))
+    print("Last step: {}".format(str(start_time - step2_time)))
+    processResults(file)
+  end_time = debugTime("processFile [{}] complete".format(file))
+  print("Time taken: {}".format(str(end_time - start_time)))
+  logging.info("csv_parser:processFile [{}] time to complete action[{}]: {}".format(file, action, str(end_time - start_time)))
 
-# Requires a file path to process. Validation handled outside of function,
-# good enough for personal use, version 2 is a quick rewrite
-# Create a list of IDs after inserting because the ID might appear in the file again, no point in second attempt at insert
+#
 def processPatientIDs(file):
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processPatientIDS({}) proc_time={}\n-----------------------------------------------------------".format(file, proc_time))
+  logging.debug("csv_parser:processPatientIDs, started file={}".format(file))
+  insert_values = []
+  proc_time = processTime()
+  counters = {"row":0, "skip":0, "indb":0}
   with open(file, 'r') as csv_file:
     csv_dict = csv.DictReader(csv_file)
     col_names = csv_dict.fieldnames
     pid_list = []
-    row_counter = 0
-    skip_counter = 0
-    sql_counter = 0
     for row in csv_dict:
-      row_counter+=1
-      if row["Hospital No."] not in pid_list:
-        pid_list.append(row["Hospital No."])
+      counters["row"]+=1
+      if row["Hospital No."] not in pid_list and row["Hospital No."].isnumeric(): # Not encountered this patient in this FILE yet
+        pid_list.append(row["Hospital No."])  # Now we have
         formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
-        try:
-          pt_query = db.patientSelectByID(row["Hospital No."])
-          if pt_query == False or len(pt_query) == 0:
-            db.patientInsertNew(row_counter, row["Hospital No."], formatted_dob, row["Sex"], file, proc_time)
-          else:
-            sql_counter+=1
-        except:
-          logging.error("processPatientIDs except row_counter [{}], Hospital No [{}], formatted_dob [{}], sex [{}], file [{}], proc_time [{}]".format(row_counter, row["Hospital No."], formatted_dob, row["Sex"], file, proc_time))
-      else:
-        skip_counter+=1
-    db.commit()
-    logging.info("processPatientIDs commit")
-  logging.info("processPatientIDs COMPLETE for file [{}]\n          SUMMARY: row_counter [{}], pid_list+skip_counter [{}],  pid_list[{}], sql_counter[{}], skip_counter[{}]".format(file, row_counter, skip_counter+len(pid_list), len(pid_list), sql_counter, skip_counter))
+        pt_query = db.patientSelectByID(row["Hospital No."]) # Possibly don't need to do this, if solely relying on PRIMARY KEY constraint, could improve processing time
+        if pt_query == False or len(pt_query) == 0: # Patient not found in DATABASE, therefore we need to insert it
+          insert_values.append((int(row["Hospital No."]), formatted_dob, row["Sex"], "{} ({})".format(file,counters["row"]), proc_time))
+        else: # Patient already found in DATABASE, so we don't want to insert again
+          counters["indb"]+=1
+      else: # Patient has been encountered in the FILE already, so we are going to skip over it
+        counters["skip"]+=1
+  if len(insert_values) > 0:
+    db.patientInsertMany(insert_values)
+  logging.info("csv_parser:processPatientIDs, completed file={}\n                                rows in csv:        {}\n                                duplicated in file: {}\n                                found in database:  {}\n                                patients to add:    {}".format(file, counters["row"], counters["skip"], counters["indb"], len(insert_values)))
 
-# Just need the data in as fast as possible. Table has primary key on sample ID full and will reject duplicate entries, no need for existence check before insert
-# Personal project, check previous commits for a more "appropriate" approach
-def processSamplesSafetyOff(file):
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processSamplesSafetyOff({}) BEGIN proc_time={}\n-------------------------------------------------------------------------------------------".format(file, proc_time))
+#
+def processSamples(file):
+  logging.debug("csv_parser:processSamples, file={}".format(file))
+  insert_values = []
+  proc_time = processTime()
   counters = {"row":0, "success":0, "fail":0}
   with open(file, 'r') as csv_file:
     csv_dict = csv.DictReader(csv_file)
     col_names = csv_dict.fieldnames
-    logging.info("Start of FOR")
+    logging.debug("processSamples [{}] Start FOR".format(file))
     for row in csv_dict:
       counters["row"] += 1
-      try:
-        formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
-        determined_type = bloodOrUrine(row['UMICR'])
-        db.sampleInsertNew(counters["row"], row["Lab No/Spec No"], row["Hospital No."], formatted_receipt, determined_type, row["LOC"], row["MSG"], file, proc_time)
-        counters["success"] += 1
-      except:
-        logging.error("failed row {}".format(counters["row"]))
-        counters["fail"] += 1
-    logging.info("End of FOR")
-    db.commit()
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processSamplesSafetyOff({}) END proc_time={}, rows in csv={}, rows inserted={}, rows not inserted={}\n-------------------------------------------------------------------------------------------".format(file, proc_time, counters["row"], counters["success"], counters["fail"]))
+      formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
+      formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
+      determined_type = bloodOrUrine(row['UMICR'])
+      days = manip.patientAgeOrdinal(formatted_dob, formatted_receipt)
+      years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
+      insert_values.append((row["Lab No/Spec No"], row["Hospital No."], formatted_receipt, days, years, determined_type, row["LOC"], row["MSG"], "{} ({})".format(file, counters["row"]), proc_time))
+    logging.debug("processSamples [{}] End FOR".format(file))
+  if len(insert_values) > 0:
+    db.sampleInsertMany(insert_values)
+  logging.info("csv_parser:processSamples, completed file={}\n                                rows in csv={}\n                                rows inserted={}".format(file, counters["row"], len(insert_values)))
 
-def processResultsSafetyOff(file):
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processResultsSafetyOff({}) BEGIN proc_time={}\n-------------------------------------------------------------------------------------------".format(file, proc_time))    
-  counters = {"row":0, "success":0, "fail":0}
-  sample_ids = db.samplesSelectByFile(file)
-  analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO"])
-
-  with open(file, 'r') as csv_file:
-    csv_dict = csv.DictReader(csv_file)
-    col_names = csv_dict.fieldnames
-    for row in csv_dict:
-      counters["row"] += 1
-      sample_info = [sid for sid in sample_ids if sid[1] == row["Lab No/Spec No"]]
-      for analyte in analytes:
-        if row[analyte].strip() != "": 
-          try:
-            db.resultInsertNew(counters["row"], sample_info[0][0], analytes[analyte], row[analyte], file, proc_time)
-            counters["success"] += 1
-          except:
-            logging.error("failed row {}".format(counters["row"]))
-            counters["fail"] += 1
-    logging.info("End of FOR")
-    db.commit()
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processResultsSafetyOff({}) END proc_time={}, rows in csv={}, rows inserted={}, rows not inserted={}\n-------------------------------------------------------------------------------------------".format(file, proc_time, counters["row"], counters["success"], counters["fail"]))
-
-def processResultsSafetyOff2(file):
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processResultsSafetyOff({}) BEGIN proc_time={}\n-------------------------------------------------------------------------------------------".format(file, proc_time))    
-  counters = {"row":0, "success":0, "fail":0}
-  sample_ids = db.samplesSelectByFile(file)
+#
+def processResults(file):
+  proc_time = processTime()
+  logging.debug("csv_parser:processResults, file={}".format(file))
+  counters = {"row":0, "success":0, "fail":0, "mdrd":0, "ckdepi":0}
+  sample_ids = db.samplesSelectByFile("{}%".format(file))
+  logging.debug("csv_parser:processResults {} sample_ids collected".format(len(sample_ids)))
   analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO","MDRD","CKDEPI"])
-  values = []
+  logging.debug("csv_parser:processResults {} analytes".format(len(analytes)))
+  insert_values = []
   with open(file, 'r') as csv_file:  
     csv_dict = csv.DictReader(csv_file)
     col_names = csv_dict.fieldnames
+    logging.debug("csv_parser:processResults [{}] Start FOR".format(file))
     for row in csv_dict:
       counters["row"] += 1
       sample_info = [sid for sid in sample_ids if sid[1] == row["Lab No/Spec No"]]
-      for analyte in analytes:
-        if row[analyte].strip() != "": 
-            values.append((counters["row"], sample_info[0][0], analytes[analyte], row[analyte], file, proc_time))
+      #logging.debug("csv_parser:processResults sample_info matched")
+      if(len(sample_info) == 0):
+        logging.error("No sample id on row {}".format(counters["row"]))
+      else:
+        sample_info = sample_info[0][0]
+        for analyte in analytes:
+          #logging.debug("csv_parser:processResults analyte FOR {}".format(analyte))
+          if analyte != "MDRD" and analyte != "CKDEPI" and row[analyte].strip() != "": 
+            insert_values.append((sample_info, analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
+            #logging.debug("csv_parser:processResults insert_values for {}".format(analyte))
             counters["success"] += 1
-    logging.info("End of FOR")
-    db.resultsInsertBatch(values)
-  proc_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime())
-  logging.info("processResultsSafetyOff2({}) END proc_time={}, rows in csv={}, rows inserted={}".format(file, proc_time, counters["row"], counters["success"]))
+            if analyte == "CRE" and row[analyte].strip() != 'NA': # Non-blank creatinines can have eGFR calculated at this point
+              formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
+              formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
+              #logging.debug("csv_parser:processResults formatted dob and recepit date")
+              years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
+              #logging.debug("csv_parser:processResults years got")
+              mdrd = manip.calculateMDRD(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
+              #logging.debug("csv_parser:processResults mdrd got")
+              if mdrd != False:
+                insert_values.append((sample_info, analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                #logging.debug("csv_parser:processResults mdrd insert_values done")
+                counters["success"] += 1
+                counters["mdrd"] += 1
+              ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
+              #logging.debug("csv_parser:processResults CKD EPI got")
+              if ckdepi != False:
+                insert_values.append((sample_info, analytes["CKDEPI"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                #logging.debug("csv_parser:processResults CKD EPI insert_values done")
+                counters["success"] += 1
+                counters["ckdepi"] += 1
+        #logging.debug("csv_parser:processResults end of analyte FOR")
+    logging.debug("processResults [{}] End FOR".format(file))
+  if len(insert_values) > 0:
+    db.resultsInsertBatch(insert_values)
+  logging.info("csv_parser:processResults, completed file={}\n                                rows in csv={}\n                                rows inserted={}\n                                mdrd={}\n                                ckdepi={}".format(file, counters["row"], counters["success"], counters["mdrd"], counters["ckdepi"]))
 
 # TelePath outputs dates in dd.mm.yy or dd-mm-yy format depending on how close the year 
 # is to being 100 years, i.e. an overlap "-21" = 1921 but ".21" = 2021 
@@ -198,10 +220,14 @@ def getAnalyteIDs(tests):
 # Reused code to print the time at start and end of processes
 # Returns the time in the event of wanting to find a delta or do something fancy
 def debugTime(process_title):
-  local_time = time.localtime()
-  print("{}: {}".format(process_title, time.asctime(local_time)), flush=True)
-  logging.info("csvparser.py - {}: {}".format(process_title, time.asctime(local_time)))
+  local_time = datetime.now()
+  print("{}: {}".format(process_title, datetime.now()), flush=True)
   return local_time
+
+# Helper function as dependent on other functions and changed from time.localtime to datetime.now in multiple locations in this file 
+def processTime():
+  dtn = datetime.now()
+  return dtn.strftime("%Y-%m-%dT%H:%M:%S")
 
 if __name__ == '__main__':
   logging.info("Session started [csvparser entry]")

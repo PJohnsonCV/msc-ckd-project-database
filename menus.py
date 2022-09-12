@@ -1,6 +1,7 @@
 import csv_parser as csv
 import db_methods as db
 import data_manip as customs
+import linear_regression as linreg
 import os
 import logging
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
@@ -8,7 +9,11 @@ logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s:
 def csv_main():
   os.system('cls||clear')
   print("CSV Parser\n----------\n")
-  print("1. Import full")
+  print("1. Import everything (multipass)")
+  print("2. Import patients only")
+  print("3. Import samples only")
+  print("4. Import results only")
+  print("5. Import samples and results (not patients)")
   print("ENTER to go back to the main menu")
   selection = input("\nEnter your choice: ")
   if selection == "1":
@@ -17,6 +22,10 @@ def csv_main():
     csv.selectFile(1)
   elif selection == "3":
     csv.selectFile(2)
+  elif selection == "4":
+    csv.selectFile(3)
+  elif selection == "5":
+    csv.selectFile(4)
   program_main()
 
 def db_main():
@@ -35,7 +44,8 @@ def db_main():
     #input("No custom fixes to run")
     #db.initialiseAnalytes()
     #customs.insertSampleAges()
-    customs.insertCalculatedEGFR()
+    #customs.insertCalculatedEGFR()
+    db.initialiseTables()
   program_main()
 
 def resetPanic():
@@ -43,7 +53,7 @@ def resetPanic():
   print("Database Control: RESET DATABASE\n--------------------------------\n\n")
   print("! ----------------------- !!! WARNING !!! ----------------------- !\n")
   print("! Resetting the database will result in TOTAL DATA LOSS.          !\n")
-  print("! Do NOT reset without due cause, and a backup of necessary data. !\n")
+  print("! Do NOT reset without due cause, and backup any necessary data.  !\n")
   print("! ----------------------- !!! WARNING !!! ----------------------- !\n\n")
   selection = input("Type 'QUIT' to go back to the menu, or 'CONT' to continue with a database reset: ")
   if selection.upper() == "QUIT":
@@ -56,8 +66,7 @@ def resetPanic():
       if dblconfirm.upper() == "Y":
         db.resetDatabase()
         input("\nYou have reset the database. Press return to continue.")
-        db_main()
-    input("\nDatabase was NOT reset because you cancelled or didn't pass a check. Press return to go back to the menu.\n")
+    #input("\nDatabase was NOT reset because you cancelled or didn't pass a check. Press return to go back to the menu.\n")
     db_main()
 
 def data_main():
@@ -69,6 +78,17 @@ def data_main():
   selection = input("\nEnter your choice: ")
   if selection == "1":
     print()
+  program_main()
+
+def regression_main():
+  os.system('cls||clear')
+  print("Linear Regression\n-----------------\n")
+  print("1. MDRD vs CKD-EPI all appropriate patients")
+  print("ENTER to go back to the main menu")
+  selection = input ("\nEnter your choice: ")
+  if selection == "1":
+    pids = db.patientsSelectSampleCountGreaterThan(2,1)
+    linreg.regressCalculationComparison(pids)
   program_main()
 
 def program_main():
@@ -86,6 +106,8 @@ def program_main():
     db_main()
   elif selection == "3":
     data_main()
+  elif selection == "4":
+    regression_main()
   else: 
     return
 
