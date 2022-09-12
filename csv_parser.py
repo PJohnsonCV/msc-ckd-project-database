@@ -13,7 +13,7 @@ import db_methods as db
 import menus as menu
 import data_manip as manip
 import logging
-logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.INFO)
 
 # Prompt the user for a file, or multiple files separated by comma
 # Check the file exists then process it, skip if unsuccessfull
@@ -58,26 +58,26 @@ def processFile(file, action=0):
     logging.debug("csv_parser:processFile action 0")
     start_time = debugTime("processFile [{}] 1/3 - patientIDs".format(file))
     processPatientIDs(file)
-    step2_time = debugTime("processFile [{}] 2/3 - samples".format(file))
-    print("Last step: {}".format(str(step2_time - start_time)))
+    step2_time = debugTime("processFile [{}] 2/3 - samples   ".format(file))
+    #print("Last step: {}".format(str(step2_time - start_time)))
     processSamples(file)
-    step3_time = debugTime("processFile [{}] 3/3 - results".format(file))
-    print("Last step: {}".format(str(step3_time - step2_time)))
+    step3_time = debugTime("processFile [{}] 3/3 - results   ".format(file))
+    #print("Last step: {}".format(str(step3_time - step2_time)))
     processResults(file)
   elif action == 1:
     start_time = debugTime("processFile [{}] 1/1 - patientIDs".format(file))
     processPatientIDs(file)
   elif action == 2:
-    start_time = debugTime("processFile [{}] 1/1 - samples".format(file))
+    start_time = debugTime("processFile [{}] 1/1 - samples   ".format(file))
     processSamples(file)
   elif action == 3:
-    start_time = debugTime("processFile [{}] 1/1 - results".format(file))
+    start_time = debugTime("processFile [{}] 1/1 - results   ".format(file))
     processResults(file)
   elif action == 4:
-    start_time = debugTime("processFile [{}] 1/2 - samples".format(file))
+    start_time = debugTime("processFile [{}] 1/2 - samples   ".format(file))
     processSamples(file)
-    step2_time = debugTime("processFile [{}] 2/2 - results".format(file))
-    print("Last step: {}".format(str(start_time - step2_time)))
+    step2_time = debugTime("processFile [{}] 2/2 - results   ".format(file))
+    #print("Last step: {}".format(str(start_time - step2_time)))
     processResults(file)
   end_time = debugTime("processFile [{}] complete".format(file))
   print("Time taken: {}".format(str(end_time - start_time)))
@@ -155,31 +155,29 @@ def processResults(file):
       else:
         sample_info = sample_info[0][0]
         for analyte in analytes:
-          #logging.debug("csv_parser:processResults analyte FOR {}".format(analyte))
           if analyte != "MDRD" and analyte != "CKDEPI" and row[analyte].strip() != "": 
             insert_values.append((sample_info, analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
-            #logging.debug("csv_parser:processResults insert_values for {}".format(analyte))
             counters["success"] += 1
             if analyte == "CRE" and row[analyte].strip() != 'NA': # Non-blank creatinines can have eGFR calculated at this point
-              formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
-              formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
-              #logging.debug("csv_parser:processResults formatted dob and recepit date")
-              years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
-              #logging.debug("csv_parser:processResults years got")
-              mdrd = manip.calculateMDRD(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
-              #logging.debug("csv_parser:processResults mdrd got")
-              if mdrd != False:
-                insert_values.append((sample_info, analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
-                #logging.debug("csv_parser:processResults mdrd insert_values done")
-                counters["success"] += 1
-                counters["mdrd"] += 1
-              ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
-              #logging.debug("csv_parser:processResults CKD EPI got")
-              if ckdepi != False:
-                insert_values.append((sample_info, analytes["CKDEPI"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
-                #logging.debug("csv_parser:processResults CKD EPI insert_values done")
-                counters["success"] += 1
-                counters["ckdepi"] += 1
+              formatted_dob = formatDateTime2(row["DOB/Age"], "00:00")
+              formatted_receipt = formatDateTime2(row["Date Rec'd"], row["Time Rec'd"], True)
+              if formatted_dob != False and formatted_receipt != False:
+                years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
+                if years != False:
+                  mdrd = manip.calculateMDRD(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
+                  if mdrd != False:
+                    insert_values.append((sample_info, analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                    counters["success"] += 1
+                    counters["mdrd"] += 1
+                  ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
+                  if ckdepi != False:
+                    insert_values.append((sample_info, analytes["CKDEPI"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                    counters["success"] += 1
+                    counters["ckdepi"] += 1
+                else:
+                  logging.info("csv_parser:processResults patientAgeOrdinal years is False on row {}".format(counters["row"]))
+              else:
+                logging.info("csv_parser:processResults formatted_dob or formatted_receipt are False for sample on row {}: {}, {}".format(counters["row"], formatted_dob, formatted_receipt))
         #logging.debug("csv_parser:processResults end of analyte FOR")
     logging.debug("processResults [{}] End FOR".format(file))
   if len(insert_values) > 0:
@@ -191,17 +189,47 @@ def processResults(file):
 # Convert to more sensible YYYY-MM-DD hh:mm format 
 # UPDATE: Found a case of using slashes in real world data. 
 def formatDateTime(dict_date, dict_time):
-  slash = dict_date.split("/")
-  if len(slash) > 1:
-    #if(int(slash[2]) > 2016): # Commented out as there shouldn't be any patients <17yo
-    slash[2] = "19" + slash[2][-2:]
-    fdate = slash[2] + "-" + slash[1].rjust(2,"0") + "-" + slash[0].rjust(2,"0")
-  else: 
-    prefix = "20"
-    if dict_date[-3] == "-" or int(dict_date[-2:]) > 22: #TP autoformats close-to dobs 
-      prefix = "19"
-    fdate = prefix + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
+  try:
+    slash = dict_date.split("/")
+    if len(slash) > 1:
+      #if(int(slash[2]) > 2016): # Commented out as there shouldn't be any patients <17yo
+      slash[2] = "19" + slash[2][-2:]
+      fdate = slash[2] + "-" + slash[1].rjust(2,"0") + "-" + slash[0].rjust(2,"0")
+    else: 
+      prefix = "20"
+      if dict_date[-3] == "-" or int(dict_date[-2:]) > 22: #TP autoformats close-to dobs 
+        prefix = "19"
+      fdate = prefix + dict_date[-2:] + "-" + dict_date[3:5] + "-" + dict_date[:2]
+  except:
+    logging.error("csv_parser:formatDateTime dict_date {}, dict_time {}".format(dict_date, dict_time))
   return fdate + " " + dict_time
+
+# Should probably be doing this with a regex, oh well
+def formatDateTime2(date_str, time_str, rec=False):
+  date_str = date_str.strip()
+  date_out = "{}-{}-{}"
+  if date_str != False:    
+    slashed = date_str.split("/")
+    if len(slashed) > 1:
+      date_out = date_out.format("19" + slashed[2][-2:], slashed[1].rjust(2,"0"), slashed[0].rjust(2,"0"))
+    else:
+      dotted = date_str.split(".")
+      if len(dotted) > 1:
+        cent = "20"
+        if int(dotted[2]) > 5 and rec==False: # 2022 - 17 (all 17 year old should be filtered out) = 2005
+          cent = "19"
+        date_out = date_out.format(cent + dotted[2], dotted[1], dotted[0])
+      else:
+        dashed = date_str.split("-")
+        if len(dashed) > 1:
+          date_out = date_out.format("19" + dashed[2], dashed[1], dashed[0])
+        else:
+          logging.error("csv_parser:formatDateTime2 date_str in unrecognised format")
+          return False
+    return "{} {}".format(date_out, time_str) 
+  else:
+    logging.error("csv_parser:formatDateTime2 date_str empty")
+    return False
 
 # If a sample has a urine albumin result, it must be a urine sample
 def bloodOrUrine(umic_result):

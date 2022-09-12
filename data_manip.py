@@ -6,20 +6,24 @@ import db_methods as db
 # Calculate the number of days between a sample receipt and the patient date of birth to produce an ordinal number relevant to the patient
 # more relevant to personal care than ordinal date function that goes back to 0001.
 def patientAgeOrdinal(dob, receipt, years=False):
-  origin = date(int(dob[0:4]), int(dob[5:7]), int(dob[8:10]))
-  current = date(int(receipt[0:4]), int(receipt[5:7]), int(receipt[8:10]))
-  age = (current-origin).days +1
-  if years==True:
-    age = int(receipt[0:4]) - int(dob[0:4])
-    if int(receipt[5:7])<int(dob[5:7]) or (int(receipt[5:7])==int(dob[5:7]) and int(receipt[8:10])<int(dob[8:10])):
-      age-=1
-  return age 
+  try:
+    origin = date(int(dob[0:4]), int(dob[5:7]), int(dob[8:10]))
+    current = date(int(receipt[0:4]), int(receipt[5:7]), int(receipt[8:10]))
+    age = (current-origin).days +1
+    if years==True:
+      age = int(receipt[0:4]) - int(dob[0:4])
+      if int(receipt[5:7])<int(dob[5:7]) or (int(receipt[5:7])==int(dob[5:7]) and int(receipt[8:10])<int(dob[8:10])):
+        age-=1
+    return age 
+  except:
+    logging.error("data_manip:patientAgeOrdinal bad format? dob {}, receipt {}, years {}".format(dob, receipt, years))
+    return False
   
 # MDRD equation using creatinine results in umol/L needs modifier to convert to mg/dL: divide by 88.4
 # Excluding the ethnicity modifier because data isn't available from TelePath. 
 # Calculation is: egfr = 175 x cre^-1.154 x age^-0.203 x Sex x Ethnicity
 def calculateMDRD(sample_id, cre_result, sex, age):
-  if(cre_result.strip() != "NA"):
+  if(cre_result.strip() != "NA" and cre_result.isnumeric() and cre_result.strip() != "<5"):
     cre_result = int(cre_result)
   else:
     logging.error("Unable to calculate MDRD eGFR    for {}, creatinine '{}'".format(sample_id, cre_result))
@@ -31,14 +35,15 @@ def calculateMDRD(sample_id, cre_result, sex, age):
   else:
     logging.error("Unable to calculate MDRD eGFR    for {}, patient sex '{}'".format(sample_id, sex))
     return False
-  return round(175 * (cre_result/88.4)**-1.154 * age**-0.203 * sexx)
+  mdrd =  round(175 * (cre_result/88.4)**-1.154 * age**-0.203 * sexx)
+  return mdrd
 
 # CKD-EPI calculation using creatinine results in umol/L (UK standard), excluding the ethnicity modifier (data unavailable)
 # Calculation is: egfr = 141 x min(Std Cre / K, 1)^a x max(Scre / K, 1)^-1.209 x 0.993^age x Sex x Ethnicity
 # Rounding because telepath does, don't think there's clinical relevance to decimal values
 def calculateCKDEPI(sample_id, cre_result, sex, age):
   #egfr = 141 x min(Std Cre / K, 1)^a x max(Scre / K, 1)^-1.209 x 0.993^age x F x Eth
-  if(cre_result.strip() != "NA"):
+  if(cre_result.strip() != "NA" and cre_result.isnumeric() and cre_result.strip() != "<5"):
     cre_result = int(cre_result)
   else:
     logging.error("Unable to calculate CKD-EPI eGFR for {}, creatinine '{}'".format(sample_id, cre_result))
