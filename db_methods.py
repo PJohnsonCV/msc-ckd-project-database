@@ -50,13 +50,14 @@ def initialiseTables():
 # Outputs the completion with the number of rows (assumed .rowcount
 # is accurate), or the error code as necessary
 def initialiseAnalytes():
-  try:
-    dbCurs.executemany(sql.insert_analytes, known_analytes)
-    commit() 
-    logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
-  except Error as e:
-    #dbConn.close()
-    logging.error("dbmethods.py:initialiseAnalytes {}".format(e))
+#  try:
+#    dbCurs.executemany(sql.insert_analytes, known_analytes)
+#    commit() 
+#    logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
+#  except Error as e:
+#    #dbConn.close()
+#    logging.error("dbmethods.py:initialiseAnalytes {}".format(e))
+  insertMany("analytes", known_analytes)
 
 # Initialisation / reset of database
 # Deletes tables if the exist, then creates them 
@@ -101,14 +102,19 @@ def updateSampleAges(values):
 # an execution error. 
 # Minimises code reuse for all the selects used in the module. 
 def tryCatchSelect(sql_string, values, method_name):
+  #dbConn.set_trace_callback(print)
   try:
-    dbCurs.execute(sql_string, values)
+    if values != None:
+      dbCurs.execute(sql_string, values)
+    else:
+      dbCurs.execute(sql_string)
     rows = dbCurs.fetchall()
     return rows
   except Error as e:
     logging.debug("tryCatchSelect sql_string [{}], values [{}], method_name [{}]".format(sql_string, values, method_name))
     logging.error("tryCatchSelect:{}, error: {}".format(method_name, e))
     return False
+  
 
 # Helper functions help keep things tidy!
 def commit():
@@ -139,15 +145,6 @@ def patientInsertSingle(row_number, study_id, date_of_birth, sex=1, file="Manual
   except Error as e:
     logging.error("db_methods.py:patientInsertSingle csv row {}: {}".format(row_number, e))
 
-def patientInsertMany(values):
-  try:
-    logging.debug("patientInsertMany try")
-    dbCurs.executemany(sql.insert_patient, values)
-    commit()
-    logging.debug("patientInsertMany committed")
-  except Error as e:
-    logging.error("db_methods.py:patientInsertMany: {}, {}".format(e, values))
-
 def sampleSelectByIDFull(sid):
   results = tryCatchSelect(sql.select_sample_by_full_id, ("%"+sid+"%",), "sampleSelectByIDFull")
   return results
@@ -157,15 +154,6 @@ def sampleInsertNew(row_number, sample_id, patient_id, receipt_date, sample_type
     dbCurs.execute(sql.insert_sample, (sample_id, patient_id, receipt_date, sample_type, location, category, file, process_date))
   except Error as e:
     logging.error("db_methods.py:sampleInsertNew csv row {}: {}".format(row_number, e))
-
-def sampleInsertMany(values):
-  try:
-    logging.debug("sampleInsertMany try")
-    dbCurs.executemany(sql.insert_sample, values)
-    commit()
-    logging.debug("sampleInsertMany committed")
-  except Error as e:
-    logging.error("db_methods.py:sampleInsertMany: {}".format(e))
 
 def samplesSelectByFile(file="Manual entry"):
   results = tryCatchSelect(sql.select_samples_by_original_file, (file,), "samplesSelectByFile")
@@ -189,25 +177,62 @@ def resultInsertNew(row_number, sample_id, analyte_id, analyte_value, file="Manu
   except Error as e:
     logging.error("db_methods.py:resultInsertNew csv row {}: {}".format(row_number, e))
 
-def resultsInsertBatch(values):
-  try:
-    dbCurs.executemany(sql.insert_result, values)
-    commit() 
-    logging.info("db_methods.py:resultsInsertBatch Updated {} of {} results(s)".format(dbCurs.rowcount, len(values)))
-  except Error as e:
-    logging.error("dbmethods.py:resultsInsertBatch ", e)
-
 def analyteSelectByTest(test):
   results = tryCatchSelect(sql.select_analyte_by_code, (test,), "analyteSelectByTest")
   return results
 
-def regressionInsertBatch(values):
-  try:
-    dbCurs.executemany(sql.insert_linearregression, values)
-    commit() 
-    logging.info("db_methods.py:regressionInsertBatch Updated {} of {} results(s)".format(dbCurs.rowcount, len(values)))
-  except Error as e:
-    logging.error("dbmethods.py:regressionInsertBatch ", e)
+def regressionSelectByPatientAndType(pid=0, type=None):
+  if pid == 0 and type == 0:
+    results = None
+  elif pid != 0 and type == None:
+    str = sql.select_regression_by_pid
+    results = tryCatchSelect(str, (pid,), "regressionSelectByPatientAndType pid only")
+  elif pid == 0 and type != None:
+    str = sql.select_regression_all_by_type
+    results = tryCatchSelect(str, (type, ), "regressionSelectByPatientAndType type only")
+  elif pid != 0 and type != None:
+    str = sql.select_regression_by_pid_and_type
+    results = tryCatchSelect(str, (pid, type, ), "regressionSelectByPatientAndType pid + type")
+  return results
+
+def regressionSelectUsedResults(samp_ids, analyte_code):
+  formatted = sql.select_regression_results_used.format(samp_ids)
+  results= tryCatchSelect(formatted, (analyte_code,), "regressionSelectUsedCREResults")
+  return results
+
+# Single definition to keep the module organised -> removes the same code for specific debug strings 
+def insertMany(to_table, values):
+  table_definitions = {
+    "patients" : ("patient", sql.insert_patient, 5), 
+    "samples"  : ("sample",  sql.insert_sample, 10), 
+    "results"  : ("result",  sql.insert_result, 5), 
+    "analytes" : ("analyte", sql.insert_analytes, 3), 
+    "linear_regression" : ("linear_regression", sql.insert_linearregression, 11)
+  }
+  if to_table in table_definitions:
+    print(len(values), len(values[0]), table_definitions[to_table][2])
+    if len(values) > 0 and len(values[0]) == table_definitions[to_table][2]:
+      try:
+        dbCurs.executemany(table_definitions[to_table][1], values)
+        commit()
+        logging.info("db_methods:insertMany {} successfully committed {} values".format(to_table, len(values)))
+      except Error as e:
+        logging.error("db_methods:insertMany failed to insert values to '{}', size of tuple: {}. Error thrown: {}".format(to_table, len(values), e))
+        logging.debug("tuple contents:\n{}".format(values))
+    else:
+      logging.error("db_methods:insertMany 'values' has an incorrect number of values for '{}'; expecting {}, counted {}".format(to_table, table_definitions[to_table], len(values)))
+      return False
+  else:
+    logging.error("db_methods:insertMany 'to_table' is not in list of table_definitions '{}'".format(to_table))
+    return False
+
+def tableCounts():
+  sql_str = []
+  for table in sql.list_tables:
+    sql_str.append("SELECT count(*), '{}' as '{}' FROM {} ".format(table, table, table))
+  union = 'UNION '.join(sql_str) + " ORDER BY 2;"
+  results = tryCatchSelect(union, None, "tableCounts")
+  return results
 
 if __name__ == '__main__':
   logging.info("Session started [dbmethods entry]")

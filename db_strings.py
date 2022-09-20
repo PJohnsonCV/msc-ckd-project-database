@@ -6,6 +6,9 @@
 # - ANALYTE string(s?)
 # - LINEAR REGRESSION strings
 
+
+list_tables = ["patient", "sample", "analyte", "result", "linear_regression"]
+
 # Version 2 schema removes most/all link tables for ease of programming simple queries for quick answers
 # it was such a pain finding the right combination and order of JOIN statements to perform individual tasks
 # v2 is just patient, sample (with patient ID), result (with sample ID), no foreign keys or linked lists
@@ -68,6 +71,9 @@ define_tables = """
   CREATE INDEX idx_sample_origfile ON sample (original_file);
   CREATE INDEX idx_result_sampkey ON result (samp_key);
   CREATE INDEX idx_result_analyte ON result (analyte_id);
+  CREATE INDEX idx_analyte_code ON analyte (code);
+  CREATE INDEX idx_patient_studyid ON patient (study_id);
+  CREATE INDEX idx_sample_sampid ON sample (samp_key);
 """
 
 # Five tables, five insert statements
@@ -76,7 +82,7 @@ insert_analytes = """INSERT OR IGNORE INTO analyte (code, descriptor, units) VAL
 insert_patient = """INSERT OR REPLACE INTO patient (study_id, date_of_birth, sex, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
 insert_sample = """INSERT INTO sample (samp_id_full, study_id, receipt_date, patient_age_days, patient_age_years, type, location, category, original_file, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 insert_result = """INSERT INTO result (samp_key, analyte_id, value, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
-insert_linearregression = """INSERT INTO linear_regression (study_id, samples_included, sample_count, date_updated, slope, intercept, r, p, std_err, intercept_stderr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+insert_linearregression = """INSERT INTO linear_regression (study_id, regression_on, samples_included, sample_count, date_processed, slope, intercept, r, p, std_err, intercept_stderr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 
 # https://xkcd.com/327/
 # Personal preference to drop tables individually.
@@ -116,7 +122,14 @@ select_samples_by_original_file = """SELECT s.samp_key, s.samp_id_full, s.receip
 select_results_by_samp_key = """SELECT id, samp_key, analyte_id, value, comment, original_file, date_added FROM result WHERE samp_key = ?;"""
 select_grouped_results_by_analyte = """SELECT r.id, r.samp_key, r.analyte_id, r.value, s.patient_age_years, s.patient_age_days, p.sex, s.study_id FROM result r JOIN sample s ON (s.samp_key=r.samp_key) JOIN patient p ON (p.study_id=s.study_id) WHERE r.analyte_id IN (SELECT id from analyte WHERE code = ?) AND s.study_id IN (SELECT study_id FROM sample GROUP BY study_id HAVING count(*) > ?) ORDER BY s.study_id;"""
 select_results_expanded_by_samp_key = """SELECT id, samp_key, analyte_id, !!!!!!!!!!, value, comment, original_file, date_added FROM result WHERE samp_key = ?;"""
-select_results_by_analyte_patient = """SELECT s.samp_key, s.receipt_date, a.code, r.value, s.patient_age_days, s.patient_age_years FROM result r JOIN sample s ON (s.samp_key=r.samp_key) JOIN analyte a ON (a.id=r.analyte_id) JOIN patient p ON (p.study_id=s.study_id) WHERE p.study_id = ? and a.code=?;"""
+#select_results_by_analyte_patient = """SELECT s.samp_key, s.receipt_date, a.code, r.value, s.patient_age_days, s.patient_age_years FROM result r JOIN sample s ON (s.samp_key=r.samp_key) JOIN analyte a ON (a.id=r.analyte_id) JOIN patient p ON (p.study_id=s.study_id) WHERE p.study_id = ? and a.code=?;"""
+select_results_by_analyte_patient = """SELECT s.samp_key, s.receipt_date, r.value, s.patient_age_days, s.patient_age_years, s.samp_id_full FROM sample s JOIN result r ON s.samp_key = r.samp_key WHERE s.study_id = ? and r.analyte_id in (select a.id from analyte a where a.code=?);"""
 
 # ANALYTE string (should only need the one)
 select_analyte_by_code = """SELECT id, code, descriptor, units FROM analyte WHERE code = ?;"""
+
+# LINEAR REGRESSION strings
+select_regression_by_pid = "select lr.study_id, p.date_of_birth, p.sex, lr.regression_on, lr.samples_included, lr.sample_count, lr.date_processed, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err, lr.intercept_stderr from linear_regression lr JOIN patient p ON (p.study_id = lr.study_id) where lr.study_id = ?;"
+select_regression_by_pid_and_type = "select lr.study_id, p.date_of_birth, p.sex, lr.regression_on, lr.samples_included, lr.sample_count, lr.date_processed, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err, lr.intercept_stderr from linear_regression lr JOIN patient p ON (p.study_id = lr.study_id) where lr.study_id = ? and lr.regression_on = ?;"
+select_regression_all_by_type = "select lr.study_id, p.date_of_birth, p.sex, lr.regression_on, lr.samples_included, lr.sample_count, lr.date_processed, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err, lr.intercept_stderr from linear_regression lr JOIN patient p ON (p.study_id = lr.study_id) where lr.regression_on = ?;"
+select_regression_results_used = "select s.samp_key, s.receipt_date, r.value, s.patient_age_days, s.patient_age_years, s.samp_id_full FROM sample s JOIN result r ON r.samp_key = s.samp_key WHERE s.samp_key IN ({}) AND r.analyte_id IN (select id from analyte where code = ?);"
