@@ -106,7 +106,7 @@ def processPatientIDs(file):
       else: # Patient has been encountered in the FILE already, so we are going to skip over it
         counters["skip"]+=1
   if len(insert_values) > 0:
-    db.patientInsertMany(insert_values)
+    db.insertMany("patients", insert_values)
   logging.info("csv_parser:processPatientIDs, completed file={}\n                                rows in csv:        {}\n                                duplicated in file: {}\n                                found in database:  {}\n                                patients to add:    {}".format(file, counters["row"], counters["skip"], counters["indb"], len(insert_values)))
 
 #
@@ -129,7 +129,7 @@ def processSamples(file):
       insert_values.append((row["Lab No/Spec No"], row["Hospital No."], formatted_receipt, days, years, determined_type, row["LOC"], row["MSG"], "{} ({})".format(file, counters["row"]), proc_time))
     logging.debug("processSamples [{}] End FOR".format(file))
   if len(insert_values) > 0:
-    db.sampleInsertMany(insert_values)
+    db.insertMany("samples",insert_values)
   logging.info("csv_parser:processSamples, completed file={}\n                                rows in csv={}\n                                rows inserted={}".format(file, counters["row"], len(insert_values)))
 
 #
@@ -171,7 +171,7 @@ def processResults(file):
                     counters["mdrd"] += 1
                   ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
                   if ckdepi != False:
-                    insert_values.append((sample_info, analytes["CKDEPI"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                    insert_values.append((sample_info, analytes["CKDEPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
                     counters["success"] += 1
                     counters["ckdepi"] += 1
                 else:
@@ -181,7 +181,7 @@ def processResults(file):
         #logging.debug("csv_parser:processResults end of analyte FOR")
     logging.debug("processResults [{}] End FOR".format(file))
   if len(insert_values) > 0:
-    db.resultsInsertBatch(insert_values)
+    db.insertMany("results", insert_values)
   logging.info("csv_parser:processResults, completed file={}\n                                rows in csv={}\n                                rows inserted={}\n                                mdrd={}\n                                ckdepi={}".format(file, counters["row"], counters["success"], counters["mdrd"], counters["ckdepi"]))
 
 # TelePath outputs dates in dd.mm.yy or dd-mm-yy format depending on how close the year 

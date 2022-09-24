@@ -91,7 +91,7 @@ bobby_tables = """
   DROP TABLE IF EXISTS sample;
   DROP TABLE IF EXISTS analyte;
   DROP TABLE IF EXISTS result;
-  DROP TABLE IF EXISTS linear_regression_ordinaldate;
+  DROP TABLE IF EXISTS linear_regression;
 """
 
 alter_tables = """
@@ -124,6 +124,7 @@ select_grouped_results_by_analyte = """SELECT r.id, r.samp_key, r.analyte_id, r.
 select_results_expanded_by_samp_key = """SELECT id, samp_key, analyte_id, !!!!!!!!!!, value, comment, original_file, date_added FROM result WHERE samp_key = ?;"""
 #select_results_by_analyte_patient = """SELECT s.samp_key, s.receipt_date, a.code, r.value, s.patient_age_days, s.patient_age_years FROM result r JOIN sample s ON (s.samp_key=r.samp_key) JOIN analyte a ON (a.id=r.analyte_id) JOIN patient p ON (p.study_id=s.study_id) WHERE p.study_id = ? and a.code=?;"""
 select_results_by_analyte_patient = """SELECT s.samp_key, s.receipt_date, r.value, s.patient_age_days, s.patient_age_years, s.samp_id_full FROM sample s JOIN result r ON s.samp_key = r.samp_key WHERE s.study_id = ? and r.analyte_id in (select a.id from analyte a where a.code=?);"""
+result_ids_where_mdrd_not_equal_ckdepi = """select a.samp_key, a.value as 'MDRD', b.value as 'CKD-EPI' from result a INNER JOIN result b ON a.samp_key = b.samp_key where a.analyte_id = 15 and b.analyte_id = 16 and b.value = a.value;"""
 
 # ANALYTE string (should only need the one)
 select_analyte_by_code = """SELECT id, code, descriptor, units FROM analyte WHERE code = ?;"""

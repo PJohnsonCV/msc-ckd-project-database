@@ -50,13 +50,6 @@ def initialiseTables():
 # Outputs the completion with the number of rows (assumed .rowcount
 # is accurate), or the error code as necessary
 def initialiseAnalytes():
-#  try:
-#    dbCurs.executemany(sql.insert_analytes, known_analytes)
-#    commit() 
-#    logging.info("db_methods.py:initialiseAnalytes Inserted {} of {} analyte(s)".format(dbCurs.rowcount, len(known_analytes)))
-#  except Error as e:
-#    #dbConn.close()
-#    logging.error("dbmethods.py:initialiseAnalytes {}".format(e))
   insertMany("analytes", known_analytes)
 
 # Initialisation / reset of database
@@ -210,7 +203,7 @@ def insertMany(to_table, values):
     "linear_regression" : ("linear_regression", sql.insert_linearregression, 11)
   }
   if to_table in table_definitions:
-    print(len(values), len(values[0]), table_definitions[to_table][2])
+    logging.debug("db_methods:insertMany {} values, {} values[0], {} expected values".format(len(values), len(values[0]), table_definitions[to_table][2]))
     if len(values) > 0 and len(values[0]) == table_definitions[to_table][2]:
       try:
         dbCurs.executemany(table_definitions[to_table][1], values)

@@ -123,16 +123,26 @@ def getPatientLinearRegression(pid=0):
     regressionMDRD = db_methods.regressionSelectByPatientAndType(pid, "MDRD")
     resultsMDRD = db_methods.regressionSelectUsedResults(regressionMDRD[0][4], "MDRD")
     mdrd = prepareDataSet(int(pid), 1, "MDRD", resultsMDRD)
-       
+           
     global slope, intercept
     slope = regressionMDRD[0][7]
-    intercept = regressionMDRD[0][8]
-    print(slope, intercept)
-    
+    intercept = regressionMDRD[0][8] 
     mdrd_model = list(map(correlateX, mdrd["x"]))
+    mdrd_data = {"label": "MDRD regression", "values": mdrd_model}
+
+    regressionCKDEPI = db_methods.regressionSelectByPatientAndType(pid, "CKD-EPI")
+    resultsCKDEPI = db_methods.regressionSelectUsedResults(regressionCKDEPI[0][4], "CKDEPI") 
+    ckdepi = prepareDataSet(int(pid), 1, "CKD-EPI", resultsCKDEPI)
     
+    slope = regressionCKDEPI[0][7]
+    intercept = regressionCKDEPI[0][8] 
+    ckdepi_model = list(map(correlateX, ckdepi["x"]))
+    ckdepi_data = {"label": "CKD-EPI regression", "values": ckdepi_model}
+
+    models = [mdrd_data, ckdepi_data]
+
     xaxis_values = list(map(patientAgeAndSampleID, resultseGFR))
-    displayChart(gfrX, gfrY, mdrd_model, "Original TelePath eGFR", "MDRD regression", "Patient age (days)", "eGFR (mL/min/1.73m^2)") #, xaxis_values)
+    displayChart(gfrX, gfrY, models, "Original TelePath eGFR", "Patient age (days)", "eGFR (mL/min/1.73m^2)") #, xaxis_values)
     
   elif pid == None:
     a=a
@@ -140,9 +150,10 @@ def getPatientLinearRegression(pid=0):
     logging.error("Likely a text ID provided when expecting a number or None")
 
 # View separte from data as per webdev principles
-def displayChart(x_data, y_data, regression_data, x_legend, r_legend, x_label, y_label, x_tick=None):
+def displayChart(x_data, y_data, regression_data, x_legend, x_label, y_label, x_tick=None):
   plt.plot(x_data, y_data, 'o', label=x_legend)
-  plt.plot(x_data, regression_data, 'r', label=r_legend)
+  for regression in regression_data:
+    plt.plot(x_data, regression["values"], 'r', label=regression["label"])
   plt.xlabel(x_label)
   plt.ylabel(y_label)
 

@@ -48,7 +48,7 @@ def dbRecordCounts():
   print("Table             | Records\n-----------------------------")
   for result in results:
     print("{} | {}".format(result[1].ljust(17,' '), result[0]))
-  input = input("\nENTER to go back to the Database Control menu\n")
+  selection = input("\nENTER to go back to the Database Control menu\n")
   db_main()
 
 def dbDangerMenu():
