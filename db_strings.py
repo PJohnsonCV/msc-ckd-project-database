@@ -79,7 +79,7 @@ define_tables = """
 # Five tables, five insert statements
 # Using SQLite's data sanitation to prevent errors from CSV imports
 insert_analytes = """INSERT OR IGNORE INTO analyte (code, descriptor, units) VALUES (?, ?, ?);"""
-insert_patient = """INSERT OR REPLACE INTO patient (study_id, date_of_birth, sex, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
+insert_patient = """INSERT INTO patient (study_id, date_of_birth, sex, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
 insert_sample = """INSERT INTO sample (samp_id_full, study_id, receipt_date, patient_age_days, patient_age_years, type, location, category, original_file, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 insert_result = """INSERT INTO result (samp_key, analyte_id, value, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
 insert_linearregression = """INSERT INTO linear_regression (study_id, regression_on, samples_included, sample_count, date_processed, slope, intercept, r, p, std_err, intercept_stderr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -110,6 +110,8 @@ select_patient_id_if_multiple_samples_urine = """SELECT s.study_id FROM sample s
 select_patient_id_if_multiple_samples_serum = """SELECT s.study_id FROM sample s WHERE s.type=1 GROUP BY s.study_id HAVING count(*) > ?""" # !!
 select_patientsample_using_pids = "SELECT p.date_of_birth, s.receipt_date, s.samp_key FROM sample s JOIN patient p ON (s.study_id = p.study_id) WHERE s.study_id IN ("+select_patient_id_if_multiple_samples+");"
 update_samples_ordinal_ages = "UPDATE sample SET patient_age_days=?, patient_age_years=? WHERE samp_key=?;"
+matching_patient_ids_in_given_list = """SELECT study_id FROM patient WHERE study_id IN ({});"""
+
 
 # SAMPLE strings
 # -- Try to JOIN with patient table where possible to maintain patient-sample association

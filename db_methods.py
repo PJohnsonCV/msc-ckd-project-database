@@ -118,6 +118,11 @@ def patientSelectByID(pid):
   results = tryCatchSelect(sql.select_patient_by_id, (pid,), "patientSelectByID")
   return results
 
+def patientSelectExistingIDsFromList(pids):
+  s = sql.matching_patient_ids_in_given_list.format(pids)
+  results = tryCatchSelect(s, None, "patientSelectExistingIDsFromList")
+  return results
+
 # Groups study_id having a count greater than n in the sample table, excludes <= n obviously, so good to prevent processing 0 / 1 / 2 samples for linear regression
 def patientsSelectSampleCountGreaterThan(count_gt,sample_type=2):
   sql_str = sql.select_patient_id_if_multiple_samples
@@ -203,7 +208,7 @@ def insertMany(to_table, values):
     "linear_regression" : ("linear_regression", sql.insert_linearregression, 11)
   }
   if to_table in table_definitions:
-    logging.debug("db_methods:insertMany {} values, {} values[0], {} expected values".format(len(values), len(values[0]), table_definitions[to_table][2]))
+    #logging.debug("db_methods:insertMany {} records, {} provided parameters, {} expected parameters".format(len(values), len(values[0]), table_definitions[to_table][2]))
     if len(values) > 0 and len(values[0]) == table_definitions[to_table][2]:
       try:
         dbCurs.executemany(table_definitions[to_table][1], values)

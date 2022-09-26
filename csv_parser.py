@@ -65,8 +65,13 @@ def processFile(file, action=0):
     #print("Last step: {}".format(str(step3_time - step2_time)))
     processResults(file)
   elif action == 1:
-    start_time = debugTime("processFile [{}] 1/1 - patientIDs".format(file))
-    processPatientIDs(file)
+    if file.find(",") > -1:        #Process multiple
+      for f in file.split(","):
+        start_time = debugTime("processFile [{}] 1/1 - patientIDs".format(file))
+        processPatientIDs(f)
+    else:
+      start_time = debugTime("processFile [{}] 1/1 - patientIDs".format(file))
+      processPatientIDs(file)
   elif action == 2:
     start_time = debugTime("processFile [{}] 1/1 - samples   ".format(file))
     processSamples(file)
@@ -83,31 +88,70 @@ def processFile(file, action=0):
   print("Time taken: {}".format(str(end_time - start_time)))
   logging.info("csv_parser:processFile [{}] time to complete action[{}]: {}".format(file, action, str(end_time - start_time)))
 
+def singleSqlResult(sql_tuples):
+  return sql_tuples[0]
+
 #
 def processPatientIDs(file):
-  logging.debug("csv_parser:processPatientIDs, started file={}".format(file))
-  insert_values = []
-  proc_time = processTime()
-  counters = {"row":0, "skip":0, "indb":0}
-  with open(file, 'r') as csv_file:
-    csv_dict = csv.DictReader(csv_file)
-    col_names = csv_dict.fieldnames
+  if fileValid(file):
+    logging.info("processPatientIDs processing file={} ----------------------".format(file) )
+    insert_values = []
     pid_list = []
-    for row in csv_dict:
-      counters["row"]+=1
-      if row["Hospital No."] not in pid_list and row["Hospital No."].isnumeric(): # Not encountered this patient in this FILE yet
-        pid_list.append(row["Hospital No."])  # Now we have
-        formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
-        pt_query = db.patientSelectByID(row["Hospital No."]) # Possibly don't need to do this, if solely relying on PRIMARY KEY constraint, could improve processing time
-        if pt_query == False or len(pt_query) == 0: # Patient not found in DATABASE, therefore we need to insert it
-          insert_values.append((int(row["Hospital No."]), formatted_dob, row["Sex"], "{} ({})".format(file,counters["row"]), proc_time))
-        else: # Patient already found in DATABASE, so we don't want to insert again
-          counters["indb"]+=1
-      else: # Patient has been encountered in the FILE already, so we are going to skip over it
-        counters["skip"]+=1
-  if len(insert_values) > 0:
-    db.insertMany("patients", insert_values)
-  logging.info("csv_parser:processPatientIDs, completed file={}\n                                rows in csv:        {}\n                                duplicated in file: {}\n                                found in database:  {}\n                                patients to add:    {}".format(file, counters["row"], counters["skip"], counters["indb"], len(insert_values)))
+    proc_time = processTime()
+    counters = {"row":0, "skip":0, "indb":0}
+    with open(file, 'r') as csv_file:
+      csv_dict = csv.DictReader(csv_file)
+      col_names = csv_dict.fieldnames
+      for row in csv_dict:
+        counters["row"]+=1
+        if row["Hospital No."] not in pid_list and row["Hospital No."].isnumeric(): # Not encountered this patient in this FILE yet
+          formatted_dob = formatDateTime3(row["DOB/Age"], "00:00")
+          if formatted_dob != False:
+            pid_list.append(row["Hospital No."])
+            insert_values.append((int(row["Hospital No."]), formatted_dob, row["Sex"], "{} ({})".format(file,counters["row"]), proc_time))
+          else:          
+            logging.error("Patient excluded {}: formatted_dob is False on row {}".format(row["Hospital No."], counters["row"]))
+        else: # Patient has been encountered in the FILE already, so we are going to skip over it
+          counters["skip"]+=1
+    
+    # create a string list for SQL statement
+    if pid_list != None and len(pid_list) > 0:
+      str_join = ", ".join(pid_list)
+
+
+    if pid_list != None and len(pid_list) > 0:
+      str_join = ", ".join(pid_list)
+      pt_query = db.patientSelectExistingIDsFromList(str_join)
+      sql_result = list(map(singleSqlResult, pt_query))
+      if sql_result != None and len(sql_result) > 0:
+        counters["indb"] = len(sql_result)
+        
+        if insert_values != None and len(insert_values) > 0:
+          for study_id in sql_result:
+            tup_out = [tup for tup in insert_values if tup[0] == study_id]
+            insert_values.remove(tup_out[0])
+          if insert_values != None and len(insert_values) > 0:
+            logging.debug("insert_values length: {}".format(len(insert_values)))
+          else:
+            logging.debug("insert_values is empty after removal")
+        else:
+          logging.error("insert_values is empty before removal")
+      else:
+        logging.debug("pt_query length = 0, pt_query={}".format(pt_query))
+      
+      if len(insert_values) > 0:
+        db.insertMany("patients", insert_values)
+        if pt_query != None:
+          counters["indb"] = len(pt_query)
+        else:
+          counters["indb"] = 0
+        logging.info("csv_parser:processPatientIDs, completed file={}\n                                rows in csv:        {}\n                                duplicated in file: {}\n                                found in database:  {}\n                                patients to add:    {}".format(file, counters["row"], counters["skip"], counters["indb"], len(insert_values)))
+      else: 
+        logging.info("No values to insert ?is this an error")
+    else:
+      logging.info("No patients found in this file need processing ?is this an error")
+  else:
+    logging.error("processPatientIDs skipping invalid file {} ----------------------".format(file))
 
 #
 def processSamples(file):
@@ -203,6 +247,50 @@ def formatDateTime(dict_date, dict_time):
   except:
     logging.error("csv_parser:formatDateTime dict_date {}, dict_time {}".format(dict_date, dict_time))
   return fdate + " " + dict_time
+
+def formatDateTime3(dict_date, dict_time):
+  date_str = dict_date.strip()
+  y = 0
+  m = 0
+  d = 0
+  if date_str != False:
+    dotted = date_str.split(".") # 1900 unless < 32 (export year +10 margin), then 2000
+    dashed = date_str.split("-") # Definitely 1900
+    slashed = date_str.split("/") # Year is defined but might be wrong
+    if len(dotted) == 3:
+      y = "19" + str(dotted[2])
+      if int(dotted[2]) < 10: 
+        y = "20" + str(dotted[2])
+      m = int(dotted[1])
+      d = int(dotted[0])
+    elif len(dashed) == 3:
+      y = "19" + str(dashed[2])
+      m = int(dashed[1])
+      d = int(dashed[0])
+    elif len(dashed) == 2:
+      logging.error("formatDateTime3 dashed date has too few components: {}".format(dict_date))
+      return False
+    elif len(slashed) == 3:
+      y = slashed[2]
+      if int(slashed[2]) > 1999:
+        y = int(slashed[2]) - 100
+        #logging.info("formatDateTime3 slashed date >1999 assumed to be 100 years incorrect and changed: {} now {}".format(dict_date, y))
+      m = int(slashed[1])
+      d = int(slashed[0])
+    else:
+      logging.error("formatDateTime3 unrecognisable date format: {}".format(dict_date))
+      return False
+    # Sense check month and days within normal ranges, though not to the extreme of d in 31, 30, 29, 28 depending on month etc.
+    if m > 0 and m < 13:
+      if d > 0 and d < 32:
+        return "{}-{}-{} {}".format(y, str(m).rjust(2,"0"), str(d).rjust(2,"0"), dict_time)
+      else:
+        logging.error("formatDateTime3 day is an unacceptable value ({}), must be <32: {}".format(d, dict_date))
+        return False  
+    else:
+      logging.error("formatDateTime3 month is an unacceptable value ({}), must be <13: {}".format(m, dict_date))
+      return False
+
 
 # Should probably be doing this with a regex, oh well
 def formatDateTime2(date_str, time_str, rec=False):
