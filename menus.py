@@ -4,16 +4,16 @@ import data_manip as customs
 import linear_regression as linreg
 import os
 import logging
-logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(filename)s:%(funcName)s %(levelname)s\n                     %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 def csv_main():
   os.system('cls||clear')
   print("CSV Parser\n----------\n")
-  print("1. Import everything (multipass)")
-  print("2. Import patients only")
-  print("3. Import samples only")
-  print("4. Import results only")
-  print("5. Import samples and results (not patients)")
+  print("1. Everything")
+  print("2. Patients only")
+  print("3. Samples only")
+  print("4. Results only")
+  #print("5. Import samples and results (not patients)")
   print("ENTER to go back to the main menu")
   selection = input("\nEnter your choice: ")
   if selection == "1":
@@ -24,8 +24,8 @@ def csv_main():
     csv.selectFile(2)
   elif selection == "4":
     csv.selectFile(3)
-  elif selection == "5":
-    csv.selectFile(4)
+  #elif selection == "5":
+  #  csv.selectFile(4)
   program_main()
 
 def db_main():

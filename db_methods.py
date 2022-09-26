@@ -3,7 +3,7 @@ from sqlite3 import Error
 import db_strings as sql
 import menus as menu
 import logging
-logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(levelname)s | %(message)s', level=logging.DEBUG)
+logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(filename)s:%(funcName)s %(levelname)s\n                     %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 # Default settings for sqlite3 connection and cursor
 dbname = "study_data_v2.db" #odg don't overwrite the original

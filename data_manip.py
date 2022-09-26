@@ -2,6 +2,7 @@ from datetime import date
 import logging
 import menus as menu
 import db_methods as db
+logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(filename)s:%(funcName)s %(levelname)s\n                     %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 # Calculate the number of days between a sample receipt and the patient date of birth to produce an ordinal number relevant to the patient
 # more relevant to personal care than ordinal date function that goes back to 0001.
