@@ -133,6 +133,10 @@ def patientDOB(pid):
   else:
     return False
 
+def patientsWithMDRDAndMoreThanNSamples(n=2):
+  results = tryCatchSelect(sql.select_patient_id_has_mdrd_more_than_n, (n,), "patientsWithMDRDAndMoreThanNSamples")
+  return results
+
 # Groups study_id having a count greater than n in the sample table, excludes <= n obviously, so good to prevent processing 0 / 1 / 2 samples for linear regression
 def patientsSelectSampleCountGreaterThan(count_gt,sample_type=2):
   sql_str = sql.select_patient_id_if_multiple_samples

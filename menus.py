@@ -112,8 +112,9 @@ def regression_main():
   if selection == "1":
     regressionTestOne()
   elif selection == "2":
-    pids = db.patientsSelectSampleCountGreaterThan(2,1)
-    linreg.regressCalculationComparison(pids)
+    #pids = db.patientsSelectSampleCountGreaterThan(2,1)
+    pids = db.patientsWithMDRDAndMoreThanNSamples(2)
+    linreg.leastSquaresMDRDCKDEPI(pids)
   elif selection == "3":
     regressionPlotOne()
   else:

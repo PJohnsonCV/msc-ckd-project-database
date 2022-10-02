@@ -24,30 +24,36 @@ def prepareDataSet(patient_id, counter, set_name, sql_results):
           dataset["y"].append(float(result[2])) #Result as float
         else:
           logging.info("{} result excluded non-numeric: patient {}, sample {}, result {}".format(set_name, patient_id, result[0], result[3]))
-          #return False #<- should this be commented out? wouldn't it exclude the who dataset?
+        #return False #<- should this be commented out? wouldn't it exclude the who dataset?
       except:
         logging.error("Somehow this failed: {}, {} from {}".format(patient_id, result, sql_results))
       #  print("NoneType error spotted in prepareDataSet - check study.log")
   else:
     logging.info("{} results = None for {}, counter is {}".format(set_name, patient_id, counter))
     return False
+
   if len(dataset["s"])==0 and len(dataset["x"])==0 and len(dataset["y"])==0:
     logging.info("dataset is empty, {} patient sex is possibly not F M or P".format(patient_id))
     return False
+  else:
+    first_x = dataset["x"][0]
+    xs = dataset["x"].count(first_x)
+    if xs == len(dataset["x"]):
+      logging.error("X-axis is replicates of {} for patient {}".format(first_x, patient_id))
+      return False
   return dataset
 
-def regressCalculationComparison(patient_ids):
-  logging.info("regressCalculationComparison started")
+def leastSquaresMDRDCKDEPI(patient_ids):
+  logging.info("Linear Regression Data Gather -----------------------------------------------------------------------")
   if patient_ids == False or patient_ids == None:
-    logging.error("{} patient ids a problem".format(patient_ids))
+    logging.error("No patient ids presented: {}".format(patient_ids))
     return False
+  logging.info("{} patients will be processed".format(len(patient_ids)))
 
   counter = 0
-  percent = round(0.01 * len(patient_ids))
+  percent = round(0.20 * len(patient_ids))
   results = []
-
-  logging.info("{} patients pulled".format(len(patient_ids)))
-  results = []
+  
   for patient in patient_ids:
     patient=patient[0]
     counter += 1
@@ -58,30 +64,37 @@ def regressCalculationComparison(patient_ids):
       print("{} - {}%, {} of {} gathered".format(proc_time, pc, counter, len(patient_ids)), flush=True)
 
     if str(patient).isnumeric():
-      resultsMDRD = db_methods.resultsSingleAnalyteByPatient(int(patient), "MDRD")
-      resultsCKDEPI = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKDEPI") 
-      mdrd = prepareDataSet(patient, counter, "MDRD", resultsMDRD)
-      ckdepi = prepareDataSet(patient, counter, "CKD-EPI", resultsCKDEPI)
-
-      for dataset in [mdrd, ckdepi]:
-        linreg = None
-        if dataset != False:
-          try:
-            linreg = stats.linregress(dataset["x"], dataset["y"])
-            results.append((patient, dataset["setname"], ','.join(map(str, dataset["s"])), len(dataset["s"]), proc_time, str(linreg.slope), str(linreg.intercept), str(linreg.rvalue), str(linreg.pvalue), str(linreg.stderr), str(linreg.intercept_stderr)))
-
-            #logging.info("--------------------{}".format(counter))
-            #if len(results)>3:
-            #  logging.info(results[3])
-            
-          except:
-            logging.error("linregress error with {}, ?duplicated axis values: {}".format(patient, dataset))
+      resultsMDRD =   db_methods.resultsSingleAnalyteByPatient(int(patient), "MDRD")
+      if resultsMDRD != False:
+        mdrd = prepareDataSet(patient, counter, "MDRD", resultsMDRD)
+        if mdrd != False:
+          resultsCKDEPI = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKDEPI") 
+          if resultsCKDEPI != False:
+            ckdepi = prepareDataSet(patient, counter, "CKD-EPI", resultsCKDEPI)
+            if ckdepi != False:
+              for dataset in [mdrd, ckdepi]:
+                linreg = None
+                try:
+                  linreg = stats.linregress(dataset["x"], dataset["y"])
+                  results.append((patient, dataset["setname"], ','.join(map(str, dataset["s"])), len(dataset["s"]), proc_time, str(linreg.slope), str(linreg.intercept), str(linreg.rvalue), str(linreg.pvalue), str(linreg.stderr), str(linreg.intercept_stderr)))
+                except:
+                  logging.error("Patient {} likely has replicated x-axis values: {}".format(patient, dataset))
+            else:
+              logging.error("MDRD data okay but CKD-EPI data unsuitible for linear regression for patient {}".format(patient))
+          else:
+            logging.error("No CKD-EPI results for patient {}".format(patient))
+        else:
+          logging.error("MDRD data unsuitible for linear regression for patient {}".format(patient))
+      else:
+        logging.error("No MDRD results for patient {}".format(patient))
     else:
       logging.error("Patient ID {} is not numeric, what happened?".format(patient))
-  logging.info("{} results to push to database".format(len(results)))
   if len(results) > 0:
     db_methods.insertMany("linear_regression", results)
-  logging.info("regressCalculationComparison completed")
+    logging.info("{} linear regression results committed".format(len(results)))
+  else:
+    logging.info("No linear regression results to commit.")
+  logging.info("Linear regression data gather completed.")
 
 # getPatientLinearRegression was NOT showing the regression line where the data sat, needed to show that regression on the fly matched the database values, and that output displayed as expected, left in as a useful troubleshooter
 def regressSingleForTesting(pid=0):
@@ -151,9 +164,12 @@ def getPatientLinearRegression(pid=0):
 
 # View separte from data as per webdev principles
 def displayChart(x_data, y_data, regression_data, x_legend, x_label, y_label, x_tick=None):
+  markers = ["r", "D", "^", "s", "p", "*", "d", "x"]
+  
   plt.plot(x_data, y_data, 'o', label=x_legend)
   for regression in regression_data:
-    plt.plot(x_data, regression["values"], 'r', label=regression["label"])
+    i = regression_data.index(regression)
+    plt.plot(x_data, regression["values"], markers[i], label=regression["label"])
   plt.xlabel(x_label)
   plt.ylabel(y_label)
 
@@ -168,6 +184,7 @@ def displayChart(x_data, y_data, regression_data, x_legend, x_label, y_label, x_
   if x_tick != None:
     plt.xticks(x_data, x_tick, rotation='horizontal')
   
+  plt.legend()
   plt.show()
 
 if __name__ == '__main__':
