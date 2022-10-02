@@ -215,33 +215,37 @@ def processResults(file):
         counters["row"] += 1
 
         for analyte in analytes:
-          if analyte != "MDRD" and analyte != "CKDEPI" and row[analyte].strip() != "": 
-            insert_values.append((row["Lab No/Spec No"], analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
-            counters["success"] += 1
-            if analyte == "CRE" and row[analyte].strip() != 'NA': # Non-blank creatinines can have eGFR calculated at this point
-              formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
-              if formatted_dob == False:
-                formatted_dob = db.patientDOB(row["Hospital No."])
-                logging.error("Bad date of birth in CSV {}, attempting to use value from database {}".format(row["DOB/Age"], formatted_dob))
-              
-              formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"], True)
-              if formatted_dob != False and formatted_receipt != False:
-                years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
-                if years != False and years > 0:
-                  mdrd = manip.calculateMDRD(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
-                  if mdrd != False:
-                    insert_values.append((row["Lab No/Spec No"], analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
-                    counters["success"] += 1
-                    counters["mdrd"] += 1
-                  ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
-                  if ckdepi != False:
-                    insert_values.append((row["Lab No/Spec No"], analytes["CKDEPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
-                    counters["success"] += 1
-                    counters["ckdepi"] += 1
+          formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
+          if formatted_dob == False:
+            formatted_dob = db.patientDOB(row["Hospital No."])
+            logging.error("Bad date of birth in CSV {}, attempting to use value from database {}".format(row["DOB/Age"], formatted_dob))
+          if formatted_dob != False:
+            formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"], True)
+            if formatted_receipt != False:
+              if analyte != "MDRD" and analyte != "CKDEPI" and row[analyte].strip() != "": 
+                insert_values.append((row["Lab No/Spec No"], analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
+                counters["success"] += 1
+                if analyte == "CRE" and row[analyte].strip() != 'NA': # Non-blank creatinines can have eGFR calculated at this point
+                  years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
+                  if years != False and years > 0:
+                    mdrd = manip.calculateMDRD(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
+                    if mdrd != False:
+                      insert_values.append((row["Lab No/Spec No"], analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                      counters["success"] += 1
+                      counters["mdrd"] += 1
+                    ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
+                    if ckdepi != False:
+                      insert_values.append((row["Lab No/Spec No"], analytes["CKDEPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                      counters["success"] += 1
+                      counters["ckdepi"] += 1
+                  else:
+                    logging.info("Years is False or 0 on row {}, using dob {} and receipt {}".format(counters["row"], formatted_dob, formatted_receipt))
                 else:
-                  logging.info("Years is False or 0 on row {}, using dob {} and receipt {}".format(counters["row"], formatted_dob, formatted_receipt))
-              else:
-                logging.info("formatted_dob or formatted_receipt are False for sample on row {}: {}, {}".format(counters["row"], formatted_dob, formatted_receipt))
+                  logging.info("Cannot calculate eGFR when creatinine is NA, on row {}".format(counters["row"]))
+            else:
+              logging.info("RESULT EXCLUDED {}: formatted_receipt is False on row {}".format(row["Lab No/Spec No"], counters["row"]))
+          else:
+            logging.info("RESULT EXCLUDED {}: formatted_dob is False on row {}".format(row["Lab No/Spec No"], counters["row"]))
         #logging.debug("csv_parser:processResults end of analyte FOR")
     #logging.debug("processResults [{}] End FOR".format(file))
     if len(insert_values) > 0:

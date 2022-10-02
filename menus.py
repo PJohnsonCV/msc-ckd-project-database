@@ -24,9 +24,8 @@ def csv_main():
     csv.selectFile(2)
   elif selection == "4":
     csv.selectFile(3)
-  #elif selection == "5":
-  #  csv.selectFile(4)
-  program_main()
+  else:
+    program_main()
 
 def db_main():
   os.system('cls||clear')
@@ -39,7 +38,8 @@ def db_main():
     dbRecordCounts()
   elif selection == "9":
     dbDangerMenu()
-  program_main()
+  else:
+    program_main()
 
 def dbRecordCounts():
   results = db.tableCounts()
@@ -54,9 +54,9 @@ def dbRecordCounts():
 def dbDangerMenu():
   os.system('cls||clear')
   print("Database Control - DANGER ZONE !!!\n----------------------------------\n")
-  print("A. Alter Tables\n   This relies on db_strings.alter_tables having SQL string(s) present.\n")
-  print("F. Any custom fixes to run after reset/alter.\n   This should be called after running Alter Tables, and is dependent on menus.dbDangerMenu having function calls.\n")
-  print("R. Reset/Initialise\n   This deletes the tables and all data within, then recreates with only the analyte data present. !!! BACK UP THE DATABASE FILE FIRST !!!\n")
+  print("A. Alter Tables\n   This relies on db_strings.alter_tables having SQL string(s) present.")
+  print("F. Any custom fixes to run after reset/alter.\n   This should be called after running Alter Tables, and is dependent on menus.dbDangerMenu having function calls.")
+  print("R. Reset/Initialise\n   This deletes the tables and all data within, then recreates with only the analyte data present. !!! BACK UP THE DATABASE FILE FIRST !!!")
   print("ENTER to go back to the database control menu")
   selection = input("\nEnter your choice: ")
   if selection.upper() == "A":
@@ -66,7 +66,8 @@ def dbDangerMenu():
     print("Nothig to run")
   elif selection.upper() == "R":
     dbResetPanic()
-  db_main()
+  else:
+    db_main()
 
 def dbResetPanic():
   os.system('cls||clear')
@@ -87,17 +88,17 @@ def dbResetPanic():
         db.resetDatabase()
         input("\nYou have reset the database. Press ENTER to continue.")
     #input("\nDatabase was NOT reset because you cancelled or didn't pass a check. Press return to go back to the menu.\n")
-    db_main()
+  db_main()
 
 def data_main():
   os.system('cls||clear')
   print("Data modification etcetra\n-------------------------\n")
-  print("1. Add ordinal age to samples")
-  print("2. Add MDRD and CKD-EPI calculations to results")
+  #print("1. Add ordinal age to samples")
+  #print("2. Add MDRD and CKD-EPI calculations to results")
   print("ENTER to go back to the main menu")
   selection = input("\nEnter your choice: ")
-  if selection == "1":
-    print()
+  #if selection == "1":
+  #  print()
   program_main()
 
 def regression_main():
@@ -115,7 +116,8 @@ def regression_main():
     linreg.regressCalculationComparison(pids)
   elif selection == "3":
     regressionPlotOne()
-  program_main()
+  else:
+    program_main()
 
 def regressionPlotOne():
   os.system('cls||clear')
