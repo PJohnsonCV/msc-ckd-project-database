@@ -45,7 +45,6 @@ def fileValid(file_path):
 # Specific actions = 1: just process patient IDs, 2: just process samples, 3: just process results, 4: samples and results
 def processFile(file, action=0):
   count = 0
-  logging.info("processFile action={}, file={}".format(action, file))
   start_time = datetime.now()
   if action == 0:
     logging.info("Action 0/All stages ----------------------------------------------------------------------------------")
@@ -53,35 +52,37 @@ def processFile(file, action=0):
     for f in file:
       count += 1
       f_time = debugTime("Step 1 of 3, PATIENTS from file {} of {}, {}".format(count, len(file), f))
-      processPatientIDs(f)
+      processPatientIDs(f.strip())
+    logging.info("Stage 1/3 complete ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     count = 0
     for f in file:
       count += 1
       f_time = debugTime("Step 2 of 3, SAMPLES from file {} of {}, {}".format(count, len(file), f))
-      processSamples(f)
+      processSamples(f.strip())
+    logging.info("Stage 2/3 complete ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     count = 0
     for f in file:
       count += 1
       f_time = debugTime("Step 3 of 3, RESULTS from file {} of {}, {}".format(count, len(file), f))
-      processResults(f)
+      processResults(f.strip())
   elif action == 1:
     logging.info("Action 1/Patients only -------------------------------------------------------------------------------")
     for f in file:
       count += 1
       f_time = debugTime("Step 1 of 1, PATIENTS from file {} of {}, {}".format(count, len(file), f))
-      processPatientIDs(f)
+      processPatientIDs(f.strip())
   elif action == 2:
     logging.info("Action 2/Samples only --------------------------------------------------------------------------------")
     for f in file:
       count += 1
       f_time = debugTime("Step 1 of 1, SAMPLES from file {} of {}, {}".format(count, len(file), f))
-      processSamples(f)
+      processSamples(f.strip())
   elif action == 3:
     logging.info("Action 3/Results only --------------------------------------------------------------------------------")
     for f in file:
       count += 1
       f_time = debugTime("Step 1 of 1, RESULTS from file {} of {}, {}".format(count, len(file), f))
-      processResults(f)
+      processResults(f.strip())
   #elif action == 4:
   #  start_time = debugTime("processFile [{}] 1/2 - samples   ".format(file))
   #  processSamples(file)
@@ -90,7 +91,7 @@ def processFile(file, action=0):
   #  processResults(file)
   end_time = datetime.now()
   print("Time taken for all stages: {}".format(str(end_time - start_time)))
-  logging.info("csv_parser:processFile [{}] time to complete action[{}]: {}".format(file, action, str(end_time - start_time)))
+  logging.info("Time to complete action[{}] on {} file(s): {}".format(action, len(file), str(end_time - start_time)))
 
 def singleSqlResult(sql_tuples):
   return sql_tuples[0]
@@ -99,22 +100,37 @@ def singleSqlResult(sql_tuples):
 def processPatientIDs(file):
   if fileValid(file):
     logging.info("[][][][][][][] PROCESSING FILE {} [][][][][][][]".format(file) )
-    insert_values = []
-    pid_list = []
+    insert_values = [] 
+    pid_list = set()
+    tmp_list = set()
     proc_time = processTime()
     counters = {"row":0, "skip":0, "indb":0}
     
-    # Create a list of unique patient ids as they are encountered to prevent repetition. Compare each row to the pid_list and only add a tuple of data for new pids.
-    # Reduced database rejection for inserting duplicate keyed values
+    ######## Ctrl Z here
+    # Get a complete list of unique PIDs from the file before processing each line
+    with open(file, 'r') as csv_file:
+      csv_dict = csv.DictReader(csv_file)
+      col_names = csv_dict.fieldnames
+      for row in csv_dict:
+        if row["Hospital No."].isnumeric():
+          pid_list.add(row["Hospital No."])
+   
+    # Fetch a list of matching pids to reduce the number of tuples generated in later files
+    str_join = ", ".join(pid_list)
+    pt_query = db.patientSelectExistingIDsFromList(str_join)
+    sql_result = set(map(singleSqlResult, pt_query))
+        
+    counters["row"] = 0
+    #logging.debug("start of with open file 2")
     with open(file, 'r') as csv_file:
       csv_dict = csv.DictReader(csv_file)
       col_names = csv_dict.fieldnames
       for row in csv_dict:
         counters["row"]+=1 # Count all rows in file as the one thing I can easily compare in Notepad++/Excel 
-        if row["Hospital No."] not in pid_list and row["Hospital No."].isnumeric(): # Not encountered this patient in this FILE yet
-          formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
+        if row["Hospital No."].isnumeric() and int(row["Hospital No."]) not in sql_result and row["Hospital No."] not in tmp_list: # numeric, not in db, first encounter
+          formatted_dob = formatDateTime(row["DOB/Age"], "00:00", False)
           if formatted_dob != False:
-            pid_list.append(row["Hospital No."])
+            tmp_list.add(row["Hospital No."])
             insert_values.append((int(row["Hospital No."]), formatted_dob, row["Sex"], "{} ({})".format(file,counters["row"]), proc_time))
             #Tuple translates to patient table: study_id, date_of_birth, sex, original_file, date_added
           else:   
@@ -122,26 +138,13 @@ def processPatientIDs(file):
             logging.error("PATIENT EXCLUDED {}: formatted_dob is False on row {}".format(row["Hospital No."], counters["row"]))
         else: 
           counters["skip"]+=1 # Keeping count of pids encountered repetitively
-    
+          #logging.debug("counters[skip] incremented {}".format(counters["skip"]))
+    #logging.debug("end of with open file")
+
     # Find an overlap of pids from the csv file, and those already stored in the patients table, then remove the duplicates from the list of values to insert
     # This was changed from line by line comparison in the with block, to a singular select in an attempt to reduce the processing time - I think the file processing
     # is the bottleneck, not the sql at this point. 
-    if pid_list != None and len(pid_list) > 0:
-      str_join = ", ".join(pid_list)
-      pt_query = db.patientSelectExistingIDsFromList(str_join)
-      sql_result = list(map(singleSqlResult, pt_query)) # pt_query results are [(#,)...], need a simple list of [#...]
-      if sql_result != None and len(sql_result) > 0:
-        counters["indb"] = len(sql_result)
-        # Remove unnecessary data from list of values to insert
-        if insert_values != None and len(insert_values) > 0:
-          for study_id in sql_result:
-            tup_out = [tup for tup in insert_values if tup[0] == study_id]
-            insert_values.remove(tup_out[0])
-        else:
-          logging.error("insert_values is empty before removal")
-      else:
-        logging.debug("No patients pulled from DB")
-      
+    if tmp_list != None and tmp_list != False and len(tmp_list) > 0:      
       #Finally, do the insert
       if len(insert_values) > 0:
         db.insertMany("patients", insert_values)
@@ -149,14 +152,13 @@ def processPatientIDs(file):
           counters["indb"] = len(pt_query)
         else:
           counters["indb"] = 0
-        logging.info("-------------- COMPLETED FILE {} --------------\n                                - Rows in csv:            {}\n                                - Duplicated IDs in file: {}\n                                - IDs found in database:  {}\n                                - New IDs to add:     {}\n                                - Sum of the above:   {}".format(file, counters["row"], counters["skip"], counters["indb"], len(insert_values), int(counters["skip"]) + int(counters["indb"]) + len(insert_values)))
+        logging.info("-------------- COMPLETED FILE {} --------------\n                                - Rows in csv:            {}\n                                - Duplicated IDs in file: {}\n                                - IDs found in database:  {}\n                                - New IDs to add:         {}\n                                - Sum of the above:       {}".format(file, counters["row"], counters["skip"], counters["indb"], len(insert_values), int(counters["skip"]) + int(counters["indb"]) + len(insert_values)))
       else: 
         logging.info("len(insert_values) = 0; no further processing")
     else:
-      logging.info("pid_list = None or len(pid_list) = 0; no further processing")
+      logging.info("tmp_list = None or len(tmp_list) = 0; no further processing")
   else:
     logging.error("File not valid: {}".format(file))
-
 
 # Potential to add patient check: get list of pids, compare to hospital no and reject sample if not in list of pids (no association)
 def processSamples(file):
@@ -171,8 +173,11 @@ def processSamples(file):
       for row in csv_dict:
         counters["row"] += 1
         formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
+        if formatted_dob == False:
+          formatted_dob = db.patientDOB(row["Hospital No."])
+          logging.error("Bad date of birth in CSV {}, attempting to use value from database {}".format(row["DOB/Age"], formatted_dob))
         if formatted_dob != False:
-          formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
+          formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"], True)
           if formatted_receipt != False:
             determined_type = bloodOrUrine(row['UMICR'])
             # Need to reject the sample if formatted_dob or formatted_receipt are wrong because the patient Age can't be calculated, and therefore useless data
@@ -195,59 +200,59 @@ def processSamples(file):
 
 #
 def processResults(file):
-  proc_time = processTime()
-  logging.debug("csv_parser:processResults, file={}".format(file))
-  counters = {"row":0, "success":0, "fail":0, "mdrd":0, "ckdepi":0}
-  sample_ids = db.samplesSelectByFile("{}%".format(file))
-  logging.debug("csv_parser:processResults {} sample_ids collected".format(len(sample_ids)))
-  analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO","MDRD","CKDEPI"])
-  logging.debug("csv_parser:processResults {} analytes".format(len(analytes)))
-  insert_values = []
-  with open(file, 'r') as csv_file:  
-    csv_dict = csv.DictReader(csv_file)
-    col_names = csv_dict.fieldnames
-    logging.debug("csv_parser:processResults [{}] Start FOR".format(file))
-    for row in csv_dict:
-      counters["row"] += 1
-      sample_info = [sid for sid in sample_ids if sid[1] == row["Lab No/Spec No"]]
-      #logging.debug("csv_parser:processResults sample_info matched")
-      if(len(sample_info) == 0):
-        logging.error("No sample id on row {}".format(counters["row"]))
-      else:
-        sample_info = sample_info[0][0]
+  if fileValid(file):
+    logging.info("[][][][][][][] PROCESSING FILE {} [][][][][][][]".format(file))
+    insert_values = []
+    proc_time = processTime()
+    counters = {"row":0, "success":0, "fail":0, "mdrd":0, "ckdepi":0}
+    analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO","MDRD","CKDEPI"])
+   
+    with open(file, 'r') as csv_file:  
+      csv_dict = csv.DictReader(csv_file)
+      col_names = csv_dict.fieldnames
+      #logging.debug("csv_parser:processResults [{}] Start FOR".format(file))
+      for row in csv_dict:
+        counters["row"] += 1
+
         for analyte in analytes:
           if analyte != "MDRD" and analyte != "CKDEPI" and row[analyte].strip() != "": 
-            insert_values.append((sample_info, analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
+            insert_values.append((row["Lab No/Spec No"], analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
             counters["success"] += 1
             if analyte == "CRE" and row[analyte].strip() != 'NA': # Non-blank creatinines can have eGFR calculated at this point
               formatted_dob = formatDateTime(row["DOB/Age"], "00:00")
-              formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"])
+              if formatted_dob == False:
+                formatted_dob = db.patientDOB(row["Hospital No."])
+                logging.error("Bad date of birth in CSV {}, attempting to use value from database {}".format(row["DOB/Age"], formatted_dob))
+              
+              formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"], True)
               if formatted_dob != False and formatted_receipt != False:
                 years = manip.patientAgeOrdinal(formatted_dob, formatted_receipt, True)
-                if years != False:
+                if years != False and years > 0:
                   mdrd = manip.calculateMDRD(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
                   if mdrd != False:
-                    insert_values.append((sample_info, analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                    insert_values.append((row["Lab No/Spec No"], analytes["MDRD"], mdrd, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
                     counters["success"] += 1
                     counters["mdrd"] += 1
                   ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
                   if ckdepi != False:
-                    insert_values.append((sample_info, analytes["CKDEPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                    insert_values.append((row["Lab No/Spec No"], analytes["CKDEPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
                     counters["success"] += 1
                     counters["ckdepi"] += 1
                 else:
-                  logging.info("csv_parser:processResults patientAgeOrdinal years is False on row {}".format(counters["row"]))
+                  logging.info("Years is False or 0 on row {}, using dob {} and receipt {}".format(counters["row"], formatted_dob, formatted_receipt))
               else:
-                logging.info("csv_parser:processResults formatted_dob or formatted_receipt are False for sample on row {}: {}, {}".format(counters["row"], formatted_dob, formatted_receipt))
+                logging.info("formatted_dob or formatted_receipt are False for sample on row {}: {}, {}".format(counters["row"], formatted_dob, formatted_receipt))
         #logging.debug("csv_parser:processResults end of analyte FOR")
-    logging.debug("processResults [{}] End FOR".format(file))
-  if len(insert_values) > 0:
-    db.insertMany("results", insert_values)
-  logging.info("csv_parser:processResults, completed file={}\n                                rows in csv={}\n                                rows inserted={}\n                                mdrd={}\n                                ckdepi={}".format(file, counters["row"], counters["success"], counters["mdrd"], counters["ckdepi"]))
+    #logging.debug("processResults [{}] End FOR".format(file))
+    if len(insert_values) > 0:
+      db.insertMany("results", insert_values)
+    logging.info("csv_parser:processResults, completed file={}\n                                rows in csv={}\n                                rows inserted={}\n                                mdrd={}\n                                ckdepi={}".format(file, counters["row"], counters["success"], counters["mdrd"], counters["ckdepi"]))
+  else:
+    logging.error("File not valid: {}".format(file))
 
 # Assumes dict_time is correct: don't have a need to spend any time on validating this input right now
 # This could be refactored, I'm sure of it, but I needed it spelled out line by line to make sure I didn't fudge any of the dates being handled
-def formatDateTime(dict_date, dict_time):
+def formatDateTime(dict_date, dict_time, force20=False):
   date_str = dict_date.strip()
   y = 0
   m = 0
@@ -279,6 +284,10 @@ def formatDateTime(dict_date, dict_time):
     else:
       logging.error("Unrecognisable date format: {}".format(dict_date))
       return False
+    
+    # If 100% certain the date is 2000+, force year to be 20XX
+    if force20 == True:
+      y = "20" + y[-2:]
     # Sense check month and days within normal ranges, though not to the extreme of d in 31, 30, 29, 28 depending on month etc.
     if m > 0 and m < 13:
       if d > 0 and d < 32:

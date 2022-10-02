@@ -92,5 +92,5 @@ def insertCalculatedEGFR():
   db.resultsInsertBatch(values)
   
 if __name__ == '__main__':
-  logging.info("Session started [data_manip entry]")
+  logging.DEBUG("Session started [data_manip entry]")
   menu.data_main()

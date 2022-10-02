@@ -123,6 +123,16 @@ def patientSelectExistingIDsFromList(pids):
   results = tryCatchSelect(s, None, "patientSelectExistingIDsFromList")
   return results
 
+def patientDOB(pid):
+  results = tryCatchSelect(sql.single_patient_dob, (pid, ), "patientDOB")
+  if results != None:
+    try: 
+      return results[0][0]
+    except:
+      return False
+  else:
+    return False
+
 # Groups study_id having a count greater than n in the sample table, excludes <= n obviously, so good to prevent processing 0 / 1 / 2 samples for linear regression
 def patientsSelectSampleCountGreaterThan(count_gt,sample_type=2):
   sql_str = sql.select_patient_id_if_multiple_samples

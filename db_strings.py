@@ -111,6 +111,7 @@ select_patient_id_if_multiple_samples_serum = """SELECT s.study_id FROM sample s
 select_patientsample_using_pids = "SELECT p.date_of_birth, s.receipt_date, s.samp_key FROM sample s JOIN patient p ON (s.study_id = p.study_id) WHERE s.study_id IN ("+select_patient_id_if_multiple_samples+");"
 update_samples_ordinal_ages = "UPDATE sample SET patient_age_days=?, patient_age_years=? WHERE samp_key=?;"
 matching_patient_ids_in_given_list = """SELECT study_id FROM patient WHERE study_id IN ({});"""
+single_patient_dob = """select date_of_birth from patient where study_id = ?;"""
 
 
 # SAMPLE strings
