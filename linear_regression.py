@@ -9,6 +9,52 @@ logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s:
 slope = 0
 intercept = 0
 
+def calculatedCategoryBreakdown(pid_list):
+  if pid_list != False:
+    stages = ["1","2","3a","3b","4","5"]
+    counters_mdrd = {"1": 0, "2": 0, "3a": 0, "3b": 0, "4": 0, "5": 0} 
+    counters_ckdepi = {"1": 0, "2": 0, "3a": 0, "3b": 0, "4": 0, "5": 0} 
+    counters = [counters_mdrd, counters_ckdepi]
+    for patient in pid_list:
+      patient = patient[0]
+      mdrd = db_methods.resultsSingleAnalyteByPatient(int(patient), "MDRD")
+      ckdepi = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKDEPI")
+      
+      last = mdrd[len(mdrd)-1][2]
+      cat = categorise(last)
+      counters_mdrd[cat] += 1
+
+      last = ckdepi[len(mdrd)-1][2]
+      cat = categorise(last)
+      counters_ckdepi[cat] += 1
+    print("Stage | MDRD    | CKD-EPI\n--------------------------")
+    for stage in stages:
+      print("{} | {} | {}".format(stage.rjust(5, " "), counters_mdrd[stage], counters_ckdepi[stage]))
+    print("--------------------------")
+    print("Total | {} | {}".format(len(mdrd), len(ckdepi)))
+  else:
+    logging.error("Patient ID list is empty, cannot continue. {}".format(pid_list))
+
+def categorise(value):
+  if value.isnumeric():
+    value = int(value)
+    if value < 15:
+      category = "5"
+    elif value >= 15 and value < 30:
+      category = "4"
+    elif value >= 30 and value < 45:
+      category = "3b"
+    elif value >= 45 and value < 60:
+      category = "3a"
+    elif value >= 60 and value < 90:
+      category = "2"
+    else:
+      category = "1"
+  else:
+    logging.error("Non-numeric result, cannot stage: {}".format(value))
+  return category
+
+
 def correlateX(x):
   print(slope * x + intercept)
   return intercept + slope * x
@@ -125,7 +171,7 @@ def quickMapY(list_values):
   return int(list_values[2])
 
 def patientAgeAndSampleID(list_values):
-  return "{}\n{}".format(int(list_values[2]), list_values[5])
+  return "{}\n{}".format(int(list_values[3]), list_values[1][:10])
 
 def getPatientLinearRegression(pid=0):
   if pid.isnumeric() and int(pid) > 0:
@@ -155,7 +201,7 @@ def getPatientLinearRegression(pid=0):
     models = [mdrd_data, ckdepi_data]
 
     xaxis_values = list(map(patientAgeAndSampleID, resultseGFR))
-    displayChart(gfrX, gfrY, models, "Original TelePath eGFR", "Patient age (days)", "eGFR (mL/min/1.73m^2)") #, xaxis_values)
+    displayChart(gfrX, gfrY, models, "Original TelePath eGFR", "Patient age (days)", "eGFR (mL/min/1.73m^2)", xaxis_values)
     
   elif pid == None:
     a=a
@@ -164,9 +210,9 @@ def getPatientLinearRegression(pid=0):
 
 # View separte from data as per webdev principles
 def displayChart(x_data, y_data, regression_data, x_legend, x_label, y_label, x_tick=None):
-  markers = ["r", "D", "^", "s", "p", "*", "d", "x"]
+  markers = [".", "r", "^", "s", "p", "*", "D", "o"]
   
-  plt.plot(x_data, y_data, 'o', label=x_legend)
+  plt.plot(x_data, y_data, 'x', label=x_legend)
   for regression in regression_data:
     i = regression_data.index(regression)
     plt.plot(x_data, regression["values"], markers[i], label=regression["label"])

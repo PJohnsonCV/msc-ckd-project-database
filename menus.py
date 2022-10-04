@@ -117,6 +117,9 @@ def regression_main():
     linreg.leastSquaresMDRDCKDEPI(pids)
   elif selection == "3":
     regressionPlotOne()
+  elif selection == "4":
+    pids = db.patientsWithMDRDAndMoreThanNSamples(2)
+    linreg.calculatedCategoryBreakdown(pids)
   else:
     program_main()
 
