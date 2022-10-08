@@ -193,6 +193,10 @@ def analyteSelectByTest(test):
   results = tryCatchSelect(sql.select_analyte_by_code, (test,), "analyteSelectByTest")
   return results
 
+def regressionPIDs():
+  results = tryCatchSelect(sql.select_regression_pids_mdrd, None, "regressionPIDs")
+  return results
+
 def regressionSelectByPatientAndType(pid=0, type=None):
   if pid == 0 and type == 0:
     results = None

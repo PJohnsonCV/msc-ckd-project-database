@@ -14,11 +14,17 @@ def calculatedCategoryBreakdown(pid_list):
     stages = ["1","2","3a","3b","4","5"]
     counters_mdrd = {"1": 0, "2": 0, "3a": 0, "3b": 0, "4": 0, "5": 0} 
     counters_ckdepi = {"1": 0, "2": 0, "3a": 0, "3b": 0, "4": 0, "5": 0} 
-    counters = [counters_mdrd, counters_ckdepi]
+    counters_tpgfr = {"1": 0, "2": 0, "3a": 0, "3b": 0, "4": 0, "5": 0} 
+    counters = [counters_tpgfr, counters_mdrd, counters_ckdepi]
     for patient in pid_list:
       patient = patient[0]
+      tpgfr = db_methods.resultsSingleAnalyteByPatient(int(patient), "eGFR") 
       mdrd = db_methods.resultsSingleAnalyteByPatient(int(patient), "MDRD")
       ckdepi = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKDEPI")
+      
+      last = tpgfr[len(tpgfr)-1][2]
+      cat = categorise(last)
+      counters_tpgfr[cat] += 1
       
       last = mdrd[len(mdrd)-1][2]
       cat = categorise(last)
@@ -27,11 +33,11 @@ def calculatedCategoryBreakdown(pid_list):
       last = ckdepi[len(mdrd)-1][2]
       cat = categorise(last)
       counters_ckdepi[cat] += 1
-    print("Stage | MDRD    | CKD-EPI\n--------------------------")
+    print("Stage | TP eGFR | MDRD    | CKD-EPI\n--------------------------")
     for stage in stages:
-      print("{} | {} | {}".format(stage.rjust(5, " "), counters_mdrd[stage], counters_ckdepi[stage]))
+      print("{} | {} | {} | {}".format(stage.rjust(5, " "), str(counters_tpgfr[stage]).rjust(7, " "), counters_mdrd[stage], counters_ckdepi[stage]))
     print("--------------------------")
-    print("Total | {} | {}".format(len(mdrd), len(ckdepi)))
+    print("Total | {} | {} | {}".format(len(tpgfr), len(mdrd), len(ckdepi)))
   else:
     logging.error("Patient ID list is empty, cannot continue. {}".format(pid_list))
 

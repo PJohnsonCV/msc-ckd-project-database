@@ -107,6 +107,7 @@ def regression_main():
   print("1. Test regression works using single patient ID")
   print("2. MDRD vs CKD-EPI all appropriate patients")
   print("3. Regression charts")
+  print("4. Patients in each stage of CKD (table)")
   print("ENTER to go back to the main menu")
   selection = input ("\nEnter your choice: ")
   if selection == "1":
@@ -118,7 +119,8 @@ def regression_main():
   elif selection == "3":
     regressionPlotOne()
   elif selection == "4":
-    pids = db.patientsWithMDRDAndMoreThanNSamples(2)
+    #pids = db.patientsWithMDRDAndMoreThanNSamples(2)
+    pids = db.regressionPIDs()
     linreg.calculatedCategoryBreakdown(pids)
   else:
     program_main()
