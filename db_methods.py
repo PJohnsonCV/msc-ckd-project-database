@@ -216,6 +216,14 @@ def regressionSelectUsedResults(samp_ids, analyte_code):
   results= tryCatchSelect(formatted, (analyte_code,), "regressionSelectUsedCREResults")
   return results
 
+def regressionUpdatePrediction(values):
+  try:
+    dbCurs.executemany(sql.update_lr_prediction, values)
+    commit()
+    logging.info("successfully updated {} values in linear_regression".format(len(values)))
+  except Error as e:
+    logging.error("couldn't update linear regression, {}".format(e))
+
 # Single definition to keep the module organised -> removes the same code for specific debug strings 
 def insertMany(to_table, values):
   table_definitions = {

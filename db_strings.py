@@ -64,7 +64,8 @@ define_tables = """
     r REAL,
     p REAL,
     std_err REAL,
-    intercept_stderr REAL
+    intercept_stderr REAL,
+    predict_end2020 TEXT
   );
 
   CREATE INDEX idx_sample_studyid ON sample (study_id);
@@ -95,8 +96,9 @@ bobby_tables = """
 """
 
 alter_tables = """
-  CREATE INDEX idx_result_sampkey ON result (samp_key);
 """
+
+update_lr_prediction = """UPDATE linear_regression SET predict_end2020 = ? WHERE study_id = ? and regression_on = ?;"""
 
 # PATIENT strings
 # Default select full record on one patient by their study_id

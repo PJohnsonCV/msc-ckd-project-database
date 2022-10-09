@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
+from numpy import correlate
 from scipy import stats
 import datetime as dt
 import db_methods
 import menus as menu
+import data_manip as manip
 import logging
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(filename)s:%(funcName)s %(levelname)s\n                     %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
@@ -127,8 +129,18 @@ def leastSquaresMDRDCKDEPI(patient_ids):
               for dataset in [mdrd, ckdepi]:
                 linreg = None
                 try:
+                  global slope, intercept
                   linreg = stats.linregress(dataset["x"], dataset["y"])
-                  results.append((patient, dataset["setname"], ','.join(map(str, dataset["s"])), len(dataset["s"]), proc_time, str(linreg.slope), str(linreg.intercept), str(linreg.rvalue), str(linreg.pvalue), str(linreg.stderr), str(linreg.intercept_stderr)))
+                  slope = linreg.slope
+                  intercept = linreg.intercept
+                  dob = db_methods.patientDOB(patient)
+                  if dob != False:
+                    ageindays = manip.patientAgeOrdinal(dob, "2020-12-31 23:59")
+                    predict = correlateX(ageindays)
+                  else:
+                    predict = "NA"
+
+                  results.append((patient, dataset["setname"], ','.join(map(str, dataset["s"])), len(dataset["s"]), proc_time, str(linreg.slope), str(linreg.intercept), str(linreg.rvalue), str(linreg.pvalue), str(linreg.stderr), str(linreg.intercept_stderr), predict))
                 except:
                   logging.error("Patient {} likely has replicated x-axis values: {}".format(patient, dataset))
             else:
@@ -169,6 +181,32 @@ def regressSingleForTesting(pid=0):
     plt.legend()
     plt.show()
 
+def update2020Prediction():
+  global slope, intercept
+  update_tuples = []
+  pids = db_methods.regressionPIDs()
+  for patient in pids:
+    patient = patient[0]
+    dob = db_methods.patientDOB(patient)
+    if dob != False:
+      ageindays = manip.patientAgeOrdinal(dob, "2020-12-31 23:59")
+      regressionMDRD = db_methods.regressionSelectByPatientAndType(patient, "MDRD")
+      slope = regressionMDRD[0][7]
+      intercept = regressionMDRD[0][8]
+      predict = correlateX(ageindays)
+      update_tuples.append((predict, patient, 'MDRD'))
+
+      regressionCKDEPI = db_methods.regressionSelectByPatientAndType(patient, "CKD-EPI")
+      slope = regressionCKDEPI[0][7]
+      intercept = regressionCKDEPI[0][8]
+      predict = correlateX(ageindays)
+      update_tuples.append((predict, patient, 'CKD-EPI'))
+    else:
+      logging.error("Patient DOB not good, cannot calculate future eGFR for pid {}".format(patient))
+  if len(update_tuples) > 0:
+    db_methods.regressionUpdatePrediction(update_tuples)
+  else:
+    logging.error("No tuples generated to update the linear regression table")
 
 def quickMapX(list_values):
   return int(list_values[3])

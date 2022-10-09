@@ -108,6 +108,7 @@ def regression_main():
   print("2. MDRD vs CKD-EPI all appropriate patients")
   print("3. Regression charts")
   print("4. Patients in each stage of CKD (table)")
+  print("5. UPDATE ONLY - Add 2020 prediction")
   print("ENTER to go back to the main menu")
   selection = input ("\nEnter your choice: ")
   if selection == "1":
@@ -122,6 +123,8 @@ def regression_main():
     #pids = db.patientsWithMDRDAndMoreThanNSamples(2)
     pids = db.regressionPIDs()
     linreg.calculatedCategoryBreakdown(pids)
+  elif selection == "5":
+    linreg.update2020Prediction()
   else:
     program_main()
 
