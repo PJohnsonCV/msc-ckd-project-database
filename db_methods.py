@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(filename)s:%(funcName)s %(levelname)s\n                     %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 # Default settings for sqlite3 connection and cursor
-dbname = "study_data_v2.db" #odg don't overwrite the original
+dbname = "study_data_v3.db" #odg don't overwrite the original
 dbConn = sqlite3.connect(dbname)
 dbCurs = dbConn.cursor()
 
@@ -231,7 +231,7 @@ def insertMany(to_table, values):
     "samples"  : ("sample",  sql.insert_sample, 10), 
     "results"  : ("result",  sql.insert_result, 5), 
     "analytes" : ("analyte", sql.insert_analytes, 3), 
-    "linear_regression" : ("linear_regression", sql.insert_linearregression, 11)
+    "linear_regression" : ("linear_regression", sql.insert_linearregression, 12)
   }
   if to_table in table_definitions:
     #logging.debug("db_methods:insertMany {} records, {} provided parameters, {} expected parameters".format(len(values), len(values[0]), table_definitions[to_table][2]))

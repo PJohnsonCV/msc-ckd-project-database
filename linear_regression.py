@@ -64,7 +64,7 @@ def categorise(value):
 
 
 def correlateX(x):
-  print(slope * x + intercept)
+  #print(slope * x + intercept)
   return intercept + slope * x
 
 def prepareDataSet(patient_id, counter, set_name, sql_results):
@@ -165,16 +165,16 @@ def regressSingleForTesting(pid=0):
   if pid.isnumeric() and int(pid) > 0: 
     resultsMDRD = db_methods.resultsSingleAnalyteByPatient(int(pid), "MDRD")
     mdrd = prepareDataSet(int(pid), 1, "MDRD", resultsMDRD)
-    print(mdrd["y"])
+    #print(mdrd["y"])
     
     global slope, intercept
     linreg = stats.linregress(mdrd["x"], mdrd["y"])
     slope = linreg.slope
     intercept = linreg.intercept
-    print(slope, intercept)
+    #print(slope, intercept)
 
     mdrd_model = list(map(correlateX, mdrd["x"]))
-    print(mdrd_model)
+    #print(mdrd_model)
 
     plt.plot(mdrd["x"], mdrd["y"], 'o', label='original data')
     plt.plot(mdrd["x"], mdrd_model, 'r', label='MDRD regression')

@@ -118,7 +118,11 @@ def processPatientIDs(file):
     # Fetch a list of matching pids to reduce the number of tuples generated in later files
     str_join = ", ".join(pid_list)
     pt_query = db.patientSelectExistingIDsFromList(str_join)
-    sql_result = set(map(singleSqlResult, pt_query))
+    if pt_query != False:
+      sql_result = set(map(singleSqlResult, pt_query))
+    else:
+      sql_result = []
+      pt_query = []
         
     counters["row"] = 0
     #logging.debug("start of with open file 2")
