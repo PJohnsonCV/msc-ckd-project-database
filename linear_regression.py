@@ -11,6 +11,30 @@ logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s:
 slope = 0
 intercept = 0
 
+def predictedCategoryChange2020(pid_list, calc_type="eGFR"):
+  enum_calc = ["eGFR","MDRD","CKD-EPI"]
+  insert_values = []
+  if pid_list != False:
+    if calc_type not in enum_calc:
+      for patient in pid_list:
+        patient = patient[0]
+        all_results = db_methods.resultsSingleAnalyteByPatient(int(patient), calc_type) 
+        last_result = all_results[len(all_results)-1]
+        lr_category = categorise(last_result[2])
+        pred_result = db_methods.regressionGetPrediction(patient, calc_type)
+        if pred_result != False:
+          pred_category = categorise(pred_result[0][3])
+          insert_values.append((patient, last_result[0], calc_type, last_result[2], lr_category, pred_result[0][3], pred_category)) #pid, samp_id, calc_type, result, cat, pred_result, pred_cat
+        else:
+          logging.error("Linear regression results not found for {} / {}".format(patient, calc_type))
+      if len(insert_values) > 0:
+        db_methods.insertMany("category_changes", insert_values)
+        print("Work may have completed for {} records".format(len(insert_values)))
+    else:
+      logging.error("Calculation type not supported, expecting {}, got {}".format(enum_calc, calc_type))
+  else:
+    logging.error("Patient ID list is empty, cannot continue. {}".format(pid_list))
+
 def calculatedCategoryBreakdown(pid_list):
   if pid_list != False:
     stages = ["1","2","3a","3b","4","5"]

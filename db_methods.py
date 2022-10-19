@@ -224,6 +224,10 @@ def regressionUpdatePrediction(values):
   except Error as e:
     logging.error("couldn't update linear regression, {}".format(e))
 
+def regressionGetPrediction(pid, regression):
+  results = tryCatchSelect(sql.select_regression_predict, (pid, regression, ), "regressionUpdatePrediction")
+  return results
+
 # Single definition to keep the module organised -> removes the same code for specific debug strings 
 def insertMany(to_table, values):
   table_definitions = {
@@ -231,7 +235,8 @@ def insertMany(to_table, values):
     "samples"  : ("sample",  sql.insert_sample, 10), 
     "results"  : ("result",  sql.insert_result, 5), 
     "analytes" : ("analyte", sql.insert_analytes, 3), 
-    "linear_regression" : ("linear_regression", sql.insert_linearregression, 12)
+    "linear_regression" : ("linear_regression", sql.insert_linearregression, 12),
+    "category_changes" : ("category_changes", sql.insert_catchanges, 7)
   }
   if to_table in table_definitions:
     #logging.debug("db_methods:insertMany {} records, {} provided parameters, {} expected parameters".format(len(values), len(values[0]), table_definitions[to_table][2]))

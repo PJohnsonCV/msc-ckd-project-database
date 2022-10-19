@@ -68,6 +68,16 @@ define_tables = """
     predict_end2020 TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS category_changes (
+    study_id INTEGER,
+    sample_id INTEGER,
+    calculation TEXT,
+    sample_res TEXT,
+    sample_cat TEXT,
+    lr_predict TEXT,
+    lr_cat TEXT
+  )
+
   CREATE INDEX idx_sample_studyid ON sample (study_id);
   CREATE INDEX idx_sample_origfile ON sample (original_file);
   CREATE INDEX idx_result_sampkey ON result (samp_key);
@@ -84,6 +94,7 @@ insert_patient = """INSERT INTO patient (study_id, date_of_birth, sex, original_
 insert_sample = """INSERT INTO sample (samp_id_full, study_id, receipt_date, patient_age_days, patient_age_years, type, location, category, original_file, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 insert_result = """INSERT INTO result (samp_key, analyte_id, value, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
 insert_linearregression = """INSERT INTO linear_regression (study_id, regression_on, samples_included, sample_count, date_processed, slope, intercept, r, p, std_err, intercept_stderr, predict_end2020) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+insert_catchanges = """INSERT INTO category_changes (study_id INTEGER, sample_id, calculation, sample_res, sample_cat, lr_predict, lr_cat) VALUES (?, ?, ?, ?, ?, ?, ?);"""
 
 # https://xkcd.com/327/
 # Personal preference to drop tables individually.
@@ -141,3 +152,4 @@ select_regression_by_pid_and_type = "select lr.study_id, p.date_of_birth, p.sex,
 select_regression_all_by_type = "select lr.study_id, p.date_of_birth, p.sex, lr.regression_on, lr.samples_included, lr.sample_count, lr.date_processed, lr.slope, lr.intercept, lr.r, lr.p, lr.std_err, lr.intercept_stderr from linear_regression lr JOIN patient p ON (p.study_id = lr.study_id) where lr.regression_on = ?;"
 select_regression_results_used = "select s.samp_key, s.receipt_date, r.value, s.patient_age_days, s.patient_age_years, s.samp_id_full FROM sample s JOIN result r ON r.samp_key = s.samp_id_full WHERE s.samp_key IN ({}) AND r.analyte_id IN (select id from analyte where code = ?);"
 select_regression_pids_mdrd = "select distinct(study_id) from linear_regression where regression_on = 'MDRD';"
+select_regression_predict = "select study_id, regression_on, samples_included, predict_end2020 from linear_regression WHERE study_id = ? and regression_on = ?;"
