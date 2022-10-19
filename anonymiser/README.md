@@ -41,16 +41,16 @@ The worksheet patient_renumber will have a column of NHS Numbers and a paired co
 ## CSV Format
 The CSV file must be in an expected format, or the file will be rejected. An example is provided with this code.
 
-The macro specifically looks for "PJ eGFR Data" in the second line of the file headers. Then the two header rows, three blank rows, the units row and the final blank row are all deleted, leaving just the column headers as the singular header row in the output CSV file. The following rows are as seen in a file, excluding the illustrative ":":
+The macro specifically looks for "PJ eGFR Data" in the second line of the file headers. Then the two header rows, three blank rows, the units row and the final blank row are all deleted, leaving just the column headers as the singular header row in the output CSV file. The following rows are as seen in a file:
 
-:"York & Scarborough Blood Sciences    Page: 1 of 1";
-:"Data for 01.01.20 to 31.03.20";"PJ eGFR Data   Printed: 12.10.22 15:52";
-:
-:
-:
-:"Date Rec'd";"Time Rec'd";"Hospital No.";"Lab No/Spec No";"Sex";"DOB/Age";"LOC";"MSG";"Sodium";"POT";"Urea";"CRE";"eGFR";"AKI";"UMICR";"CRP";"IHBA1C";"HbA1c";"Hb";"HCT";"MCH";"PHO";
-:;;;;;;;;"mmol/L";"mmol/L";"mmol/L";"umol/L";"mL/min/";;"mg/mmol";"mg/L";"mmol/mo";"mmol/mo";"g/L";"L/L";"pg";"mmol/L";
-:
+* "York & Scarborough Blood Sciences    Page: 1 of 1";
+* "Data for 01.01.20 to 31.03.20";"PJ eGFR Data   Printed: 12.10.22 15:52";
+* 
+* 
+* 
+* "Date Rec'd";"Time Rec'd";"Hospital No.";"Lab No/Spec No";"Sex";"DOB/Age";"LOC";"MSG";"Sodium";"POT";"Urea";"CRE";"eGFR";"AKI";"UMICR";"CRP";"IHBA1C";"HbA1c";"Hb";"HCT";"MCH";"PHO";
+* ;;;;;;;;"mmol/L";"mmol/L";"mmol/L";"umol/L";"mL/min/";;"mg/mmol";"mg/L";"mmol/mo";"mmol/mo";"g/L";"L/L";"pg";"mmol/L";
+* 
 
 
 ## Version 2 Patcher
