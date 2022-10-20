@@ -15,7 +15,7 @@ def predictedCategoryChange2020(pid_list, calc_type="eGFR"):
   enum_calc = ["eGFR","MDRD","CKD-EPI"]
   insert_values = []
   if pid_list != False:
-    if calc_type not in enum_calc:
+    if calc_type in enum_calc:
       for patient in pid_list:
         patient = patient[0]
         all_results = db_methods.resultsSingleAnalyteByPatient(int(patient), calc_type) 
@@ -23,7 +23,9 @@ def predictedCategoryChange2020(pid_list, calc_type="eGFR"):
         lr_category = categorise(last_result[2])
         pred_result = db_methods.regressionGetPrediction(patient, calc_type)
         if pred_result != False:
-          pred_category = categorise(pred_result[0][3])
+          pred_category = categorise(str(int(float(pred_result[0][3]))))
+          if pred_category == None:
+            pred_category = "5*"
           insert_values.append((patient, last_result[0], calc_type, last_result[2], lr_category, pred_result[0][3], pred_category)) #pid, samp_id, calc_type, result, cat, pred_result, pred_cat
         else:
           logging.error("Linear regression results not found for {} / {}".format(patient, calc_type))
@@ -46,7 +48,7 @@ def calculatedCategoryBreakdown(pid_list):
       patient = patient[0]
       tpgfr = db_methods.resultsSingleAnalyteByPatient(int(patient), "eGFR") 
       mdrd = db_methods.resultsSingleAnalyteByPatient(int(patient), "MDRD")
-      ckdepi = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKDEPI")
+      ckdepi = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKD-EPI")
       
       last = tpgfr[len(tpgfr)-1][2]
       cat = categorise(last)
@@ -84,6 +86,7 @@ def categorise(value):
       category = "1"
   else:
     logging.error("Non-numeric result, cannot stage: {}".format(value))
+    return None
   return category
 
 
@@ -146,7 +149,7 @@ def leastSquaresMDRDCKDEPI(patient_ids):
       if resultsMDRD != False:
         mdrd = prepareDataSet(patient, counter, "MDRD", resultsMDRD)
         if mdrd != False:
-          resultsCKDEPI = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKDEPI") 
+          resultsCKDEPI = db_methods.resultsSingleAnalyteByPatient(int(patient), "CKD-EPI") 
           if resultsCKDEPI != False:
             ckdepi = prepareDataSet(patient, counter, "CKD-EPI", resultsCKDEPI)
             if ckdepi != False:
@@ -258,7 +261,7 @@ def getPatientLinearRegression(pid=0):
     mdrd_data = {"label": "MDRD regression", "values": mdrd_model}
 
     regressionCKDEPI = db_methods.regressionSelectByPatientAndType(pid, "CKD-EPI")
-    resultsCKDEPI = db_methods.regressionSelectUsedResults(regressionCKDEPI[0][4], "CKDEPI") 
+    resultsCKDEPI = db_methods.regressionSelectUsedResults(regressionCKDEPI[0][4], "CKD-EPI") 
     ckdepi = prepareDataSet(int(pid), 1, "CKD-EPI", resultsCKDEPI)
     
     slope = regressionCKDEPI[0][7]

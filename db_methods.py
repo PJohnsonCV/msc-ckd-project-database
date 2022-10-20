@@ -31,7 +31,7 @@ known_analytes = [
   ("MCH", "Mean cell haemoglobin", "pg"),
   ("PHO", "Phosphate", "mmol/L"),
   ("MDRD", "eGFR by MDRD self calc", "mL/min/1.73m^2"),
-  ("CKDEPI", "eGFR by CKD-EPI self calc", "mL/min/1.73m^2")
+  ("CKD-EPI", "eGFR by CKD-EPI self calc", "mL/min/1.73m^2")
 ]
 
 # Commits the CREATE TABLE script for all tables in one go

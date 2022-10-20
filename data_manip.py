@@ -78,7 +78,7 @@ def insertSampleAges():
 def insertCalculatedEGFR():
   values = []
   egfrM = db.analyteSelectByTest("MDRD")
-  egfrC = db.analyteSelectByTest("CKDEPI")
+  egfrC = db.analyteSelectByTest("CKD-EPI")
   results = db.resultsGroupedByAnalyte('CRE', 2)
   logging.debug("insertCalculatedEGFR selected {} results to update.".format(len(results)))
   for result in results:

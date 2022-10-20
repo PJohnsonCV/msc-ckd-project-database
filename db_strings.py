@@ -94,7 +94,7 @@ insert_patient = """INSERT INTO patient (study_id, date_of_birth, sex, original_
 insert_sample = """INSERT INTO sample (samp_id_full, study_id, receipt_date, patient_age_days, patient_age_years, type, location, category, original_file, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 insert_result = """INSERT INTO result (samp_key, analyte_id, value, original_file, date_added) VALUES (?, ?, ?, ?, ?);"""
 insert_linearregression = """INSERT INTO linear_regression (study_id, regression_on, samples_included, sample_count, date_processed, slope, intercept, r, p, std_err, intercept_stderr, predict_end2020) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-insert_catchanges = """INSERT INTO category_changes (study_id INTEGER, sample_id, calculation, sample_res, sample_cat, lr_predict, lr_cat) VALUES (?, ?, ?, ?, ?, ?, ?);"""
+insert_catchanges = """INSERT INTO category_changes (study_id, sample_id, calculation, sample_res, sample_cat, lr_predict, lr_cat) VALUES (?, ?, ?, ?, ?, ?, ?);"""
 
 # https://xkcd.com/327/
 # Personal preference to drop tables individually.

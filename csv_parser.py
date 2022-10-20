@@ -209,7 +209,7 @@ def processResults(file):
     insert_values = []
     proc_time = processTime()
     counters = {"row":0, "success":0, "fail":0, "mdrd":0, "ckdepi":0}
-    analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO","MDRD","CKDEPI"])
+    analytes = getAnalyteIDs(["Sodium","POT","Urea","CRE","eGFR","AKI","UMICR","CRP","IHBA1C","HbA1c","Hb","HCT","MCH","PHO","MDRD","CKD-EPI"])
    
     with open(file, 'r') as csv_file:  
       csv_dict = csv.DictReader(csv_file)
@@ -226,7 +226,7 @@ def processResults(file):
           if formatted_dob != False:
             formatted_receipt = formatDateTime(row["Date Rec'd"], row["Time Rec'd"], True)
             if formatted_receipt != False:
-              if analyte != "MDRD" and analyte != "CKDEPI" and row[analyte].strip() != "": 
+              if analyte != "MDRD" and analyte != "CKD-EPI" and row[analyte].strip() != "": 
                 insert_values.append((row["Lab No/Spec No"], analytes[analyte], row[analyte], "{} ({})".format(file, counters["row"], ), proc_time))
                 counters["success"] += 1
                 if analyte == "CRE" and row[analyte].strip() != 'NA': # Non-blank creatinines can have eGFR calculated at this point
@@ -239,7 +239,7 @@ def processResults(file):
                       counters["mdrd"] += 1
                     ckdepi = manip.calculateCKDEPI(row["Lab No/Spec No"], row[analyte], row["Sex"], years)
                     if ckdepi != False:
-                      insert_values.append((row["Lab No/Spec No"], analytes["CKDEPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
+                      insert_values.append((row["Lab No/Spec No"], analytes["CKD-EPI"], ckdepi, "{} ({}) [Calculated at import]".format(file, counters["row"]), proc_time))
                       counters["success"] += 1
                       counters["ckdepi"] += 1
                   else:
