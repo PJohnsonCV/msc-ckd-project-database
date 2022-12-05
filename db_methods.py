@@ -107,7 +107,15 @@ def tryCatchSelect(sql_string, values, method_name):
     logging.debug("tryCatchSelect sql_string [{}], values [{}], method_name [{}]".format(sql_string, values, method_name))
     logging.error("tryCatchSelect:{}, error: {}".format(method_name, e))
     return False
-  
+
+# Added for insert into via select on creation of new result table specifically for 2020 data, could possibly use for initialise tables but don't break something that works
+def tryCatchExecute(sql_string, method_name):
+  try:
+    dbCurs.execute(sql_string)
+    return True
+  except Error as e:
+    logging.error("tryCatchExecute:{}, error: {}".format(method_name, e))
+    return False    
 
 # Helper functions help keep things tidy!
 def commit():
@@ -227,6 +235,21 @@ def regressionUpdatePrediction(values):
 def regressionGetPrediction(pid, regression):
   results = tryCatchSelect(sql.select_regression_predict, (pid, regression, ), "regressionUpdatePrediction")
   return results
+
+def r2020IDs(sel=0):
+  if sel == 1:
+    sql_str = sql.select_non_r2020_pids # Categories equal
+  elif sel == 2:
+    sql_str = sql.select_neg_r2020_pids # Category improved
+  elif sel == 3:
+    sql_str = sql.select_pos_r2020_pids # Category deteriorated
+  elif sel == 4:
+    sql_str = sql.select_p45_r2020_pids # Category deteriorated AND definitly stafge 4 or 5
+  else:
+    sql_str = sql.select_all_r2020_pids
+  results = tryCatchSelect(sql_str, None, "r2020IDs")
+  return results
+      
 
 # Single definition to keep the module organised -> removes the same code for specific debug strings 
 def insertMany(to_table, values):

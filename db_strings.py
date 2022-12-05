@@ -76,7 +76,24 @@ define_tables = """
     sample_cat TEXT,
     lr_predict TEXT,
     lr_cat TEXT
-  )
+  );
+
+  CREATE TABLE IF NOT EXISTS results2020 (
+    study_id INTEGER,
+    samp_key INTEGER,
+    samp_id_full TEXT,
+    receipt_date TEXT NOT NULL,
+    patient_age_days INTEGER,
+    analyte_id INTEGER,
+    analyte_code TEXT,
+    pred_samp_id INTEGER,
+    pred_cat_from TEXT,
+    pred_cat_to TEXT,
+    pred_eoy_value TEXT,
+    pred_date_value TEXT,
+    actual_value TEXT,
+    actual_cat TEXT
+  );
 
   CREATE INDEX idx_sample_studyid ON sample (study_id);
   CREATE INDEX idx_sample_origfile ON sample (original_file);
@@ -153,3 +170,15 @@ select_regression_all_by_type = "select lr.study_id, p.date_of_birth, p.sex, lr.
 select_regression_results_used = "select s.samp_key, s.receipt_date, r.value, s.patient_age_days, s.patient_age_years, s.samp_id_full FROM sample s JOIN result r ON r.samp_key = s.samp_id_full WHERE s.samp_key IN ({}) AND r.analyte_id IN (select id from analyte where code = ?);"
 select_regression_pids_mdrd = "select distinct(study_id) from linear_regression where regression_on = 'MDRD';"
 select_regression_predict = "select study_id, regression_on, samples_included, predict_end2020 from linear_regression WHERE study_id = ? and regression_on = ?;"
+
+# 2020Data strings
+newbatch_samples_of_predicted_change = """select s.study_id, s.samp_key, s.samp_id_full, s.receipt_date, s.patient_age_days from sample s join category_changes cc on (s.study_id = cc.study_id) where s.original_file like 'data/2020%';"""
+insert_meta_to_newtable = """INSERT INTO results2020 VALUES (select s.study_id, s.samp_key, s.samp_id_full, s.receipt_date, s.patient_age_days, iif(cc.calculation = 'MDRD', 15, 16) as anaid, cc.calculation, cc.sample_id, cc.sample_cat, cc.lr_cat, round(cc.lr_predict,0), round((lr.intercept + lr.slope * s.patient_age_days),0), r.value, iif(r.value < 15, 5, iif(r.value < 30, 4, iif(r.value < 45, "3b", iif(r.value < 60, "3a", iif(r.value < 90, "2", "1"))))) from sample s join category_changes cc on (s.study_id = cc.study_id) join result r on (r.samp_key = s.samp_id_full and r.analyte_id = anaid) join linear_regression lr on (cc.study_id = lr.study_id and lr.regression_on = cc.calculation) where s.original_file like 'data/2020%' order by s.study_id, s.receipt_date);"""
+# ^-- should be 564450?
+select_all_r2020_pids = """SELECT distinct(study_id) FROM results2020 ORDER BY 1;"""
+select_non_r2020_pids = """select r.study_id, case c.sample_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.sample_cat,0) end as sample_cat, case c.lr_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.lr_cat,0) end as lr_cat from results2020 r JOIN category_changes c ON (c.study_id = r.study_id) WHERE lr_cat = sample_cat order by 1;"""
+select_pos_r2020_pids = """select r.study_id, case c.sample_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.sample_cat,0) end as sample_cat, case c.lr_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.lr_cat,0) end as lr_cat from results2020 r JOIN category_changes c ON (c.study_id = r.study_id) WHERE lr_cat > sample_cat order by 1;"""
+select_p45_r2020_pids = """select r.study_id, case c.sample_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.sample_cat,0) end as sample_cat, case c.lr_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.lr_cat,0) end as lr_cat from results2020 r JOIN category_changes c ON (c.study_id = r.study_id) WHERE lr_cat > sample_cat and lr_cat in (4, 5, 6) order by 1;"""
+select_neg_r2020_pids = """select r.study_id, case c.sample_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.sample_cat,0) end as sample_cat, case c.lr_cat when '3a' then 3.1 when '3b' then 3.2 when '5*' then 6.0 else round(c.lr_cat,0) end as lr_cat from results2020 r JOIN category_changes c ON (c.study_id = r.study_id) WHERE lr_cat < sample_cat order by 1;"""
+
+

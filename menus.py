@@ -93,13 +93,61 @@ def dbResetPanic():
 def data_main():
   os.system('cls||clear')
   print("Data modification etcetra\n-------------------------\n")
+  print("1. Random IDs from 2020")
   #print("1. Add ordinal age to samples")
   #print("2. Add MDRD and CKD-EPI calculations to results")
   print("ENTER to go back to the main menu")
   selection = input("\nEnter your choice: ")
-  #if selection == "1":
-  #  print()
+  if selection == "1":
+    randomIDs()
   program_main()
+
+def randomIDs():
+  os.system('cls||clear')
+  print("Output lists of random study_ids\n--------------------------------\n")
+  print("1. No change")
+  print("2. Downward")
+  print("3. Upward")
+  print("4. Contains cat 4 / 5 definitely")
+  print("ENTER to go back to the main menu")
+  selection = input("\nEnter your choice: ")
+  q = "How many {} do you want?"
+  if selection == "1":
+    selection = input(q.format("NO CHANGE"))
+    #if selection.isnumeric():
+    print("Here's a list of random IDs:")
+    ids = customs.getRandomIDs(1, selection)
+    print(ids)
+    print("----------------------------")
+  elif selection == "2":
+    selection = input(q.format("DOWNWARD CHANGE"))
+    #if selection.isnumeric():
+    print("Here's a list of random IDs:")
+    ids = customs.getRandomIDs(2, selection)
+    print(ids)
+    print("----------------------------")
+  elif selection == "3":
+    selection = input(q.format("UPWARD CHANGE"))
+    #if selection.isnumeric():
+    print("Here's a list of random IDs:")
+    ids = customs.getRandomIDs(3, selection)
+    print(ids)
+    print("----------------------------")
+  elif selection == "4":
+    selection = input(q.format("UPWARD CHANGE WITH 4 / 5 ONLY"))
+    #if selection.isnumeric():
+    print("Here's a list of random IDs:")
+    ids = customs.getRandomIDs(4, selection)
+    print(ids)
+    print("----------------------------")
+  elif selection == "5":
+    selection = input(q.format("100% RANDOM"))
+    #if selection.isnumeric():
+    print("Here's a list of random IDs:")
+    ids = customs.getRandomIDs(0, selection)
+    print(ids)
+    print("----------------------------")
+  data_main()
 
 def regression_main():
   os.system('cls||clear')
@@ -128,7 +176,7 @@ def regression_main():
     linreg.update2020Prediction()
   elif selection == "6":
     pids = db.regressionPIDs()
-    linreg.predictedCategoryChange2020(pids, "MDRD")
+    #linreg.predictedCategoryChange2020(pids, "MDRD")
     linreg.predictedCategoryChange2020(pids, "CKD-EPI")
   else:
     program_main()

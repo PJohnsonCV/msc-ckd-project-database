@@ -2,6 +2,7 @@ from datetime import date
 import logging
 import menus as menu
 import db_methods as db
+import random
 logging.basicConfig(filename='study.log', encoding='utf-8', format='%(asctime)s: %(filename)s:%(funcName)s %(levelname)s\n                     %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
 # Calculate the number of days between a sample receipt and the patient date of birth to produce an ordinal number relevant to the patient
@@ -90,7 +91,28 @@ def insertCalculatedEGFR():
       values.append((result[1], egfrC[0][0], epi, "Manual calculation", date.today()))
   logging.debug("insertCalculatedEGFR {} results to insert.".format(len(values)))
   db.resultsInsertBatch(values)
+
+def getRandomIDs(which, how_many):
+  study_ids = [] # sets not indexable
+  rset = set() # empty set for random generation
+  cat_change = db.r2020IDs(which) 
+
+  # cat_change is array of array: study_ids, catA, catB
+  #   only need study_ids
+  for cats in cat_change:
+    if cats[0] not in study_ids:
+      study_ids.append(cats[0])
   
+  min = 0
+  max = len(study_ids)
+  for r in range(0, int(how_many)):
+    rnum = random.randint(min, max)
+    if study_ids[rnum] not in rset:
+      rset.add(study_ids[rnum])
+  return rset 
+  
+
+
 if __name__ == '__main__':
   logging.DEBUG("Session started [data_manip entry]")
   menu.data_main()
