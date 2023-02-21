@@ -20,9 +20,12 @@ From menus.py:
 
 ## CSV Parser
 Please check the comments to understand this otherwise self-explanatory module: parses CSV files for importing data to the database.
+
 ### Required file format
 The CSV parser reads the output of the Anonymiser macro (also included in this repository). For reference the headers look like this:
-*Date Rec'd,Time Rec'd,Hospital No.,Lab No/Spec No,Sex,DOB/Age,LOC,MSG,Sodium,POT,Urea,CRE,eGFR,AKI,UMICR,CRP,IHBA1C,HbA1c,Hb,HCT,MCH,PHO
+
+* "Date Rec'd,Time Rec'd,Hospital No.,Lab No/Spec No,Sex,DOB/Age,LOC,MSG,Sodium,POT,Urea,CRE,eGFR,AKI,UMICR,CRP,IHBA1C,HbA1c,Hb,HCT,MCH,PHO"
+
 Results immediately follow. The anonymiser removes a lot of unnecessary header rows so the parser is NOT expecting a normal TelePath gather output file.
 
 ## Notes for code reviewers
